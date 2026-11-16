@@ -80,7 +80,7 @@ Permissions (names match TEAMMATES, spec section i):
 `has_perm(p_course uuid, p_perm text) returns boolean`: SECURITY DEFINER, STABLE, `search_path = public`. True when `auth.uid()` has a linked `course_instructors` row for the course whose role grants the permission. All instructors of a course can read the course, its students, sessions and questions. Reading responses requires `view_results`.
 
 ### Students
-- No accounts. Each student row has `access_token`: 32 random bytes, base64url, unique. Personal link: `<APP_URL>/#/s/<token>`.
+- No accounts. Clients cannot read `students.access_token` (column grants); instructors with `modify_students` get the links from the RPC `instructor_student_links(p_course)`. Each student row has `access_token`: 32 random bytes, base64url, unique. Personal link: `<APP_URL>/#/s/<token>`.
 - The `anon` role has no table privileges at all. It may execute only the `student_*` functions and nothing else. Every `student_*` function is SECURITY DEFINER with `search_path = public, pg_temp`, looks up the student by token first, and raises `invalid_token` (SQLSTATE `P0001`, message `invalid_token`) if there is no match.
 - Regenerating a token invalidates the old link.
 
@@ -248,7 +248,7 @@ Everything else (courses, instructors, students, sessions, questions, extensions
 
 Port `TeamEvalResult.java` exactly (spec section b, test cases in `TeamEvalResultTest.java`). Implement twice: `web/src/lib/contrib.ts` and SQL `contrib_team_result(p_question, p_team_key)`. Both suites run the same fixtures from `supabase/tests/fixtures/contrib_cases.json` (generated from the Java test file), so the two implementations are tested against TEAMMATES' expected values and against each other.
 
-Student view of a CONTRIB question (when allowed): `my_claim` = raw claimed row of the student (own value and others sorted descending), `team_view_of_me` = `denormalizedAveragePerceived[i][i]` plus others sorted descending, matching TEAMMATES' per-student view.
+Student view of a CONTRIB question (when allowed): `my_claim` = raw claimed row of the student (own value and others sorted descending), `team_view_of_me` = `{own: denormalizedAveragePerceived[i][i]}` only. TEAMMATES also shows the team's view of the others; this app leaves it out (review finding F4), because in a small team the student could solve for a teammate's individual rating.
 
 ## 10. Emails
 

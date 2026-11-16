@@ -110,4 +110,5 @@ This app does not have these TEAMMATES features:
 - Emails to students when a deadline is extended.
 - A visibility preset that hides giver names from instructors too. Instructors always see names.
 - Student profiles.
+- Students see their team's view of their own contribution (CONTRIB question) but not of their teammates', so that no one can work out a teammate's rating in a small team.
 - Sign-in with Google, unless someone turns it on later.

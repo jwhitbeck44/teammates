@@ -348,3 +348,16 @@ describe('validateSessionSettings', () => {
     expect(c({ results_visibility: 'whenever' })).toContain('invalid_input');
   });
 });
+
+describe('answer size limits (same as SQL)', () => {
+  const t = q('text', {});
+  it('accepts 10000 characters and rejects 10001', () => {
+    expect(codes(t, recips(1), subs({ text: 'x'.repeat(10000) }))).toEqual([]);
+    expect(codes(t, recips(1), subs({ text: 'x'.repeat(10001) }))).toEqual(['too_long']);
+  });
+  it('limits giver_comment to 2000 characters', () => {
+    const one = (c: string) => [{ ...subs({ text: 'x' })[0], giver_comment: c }];
+    expect(codes(t, recips(1), one('y'.repeat(2000)))).toEqual([]);
+    expect(codes(t, recips(1), one('y'.repeat(2001)))).toEqual(['too_long']);
+  });
+});

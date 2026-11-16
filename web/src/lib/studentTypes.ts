@@ -10,7 +10,7 @@ import type {
   VisibilityType,
 } from './types';
 import type { SessionStatus } from './time';
-import type { ResultRow, ContribView } from './studentView';
+import type { ResultRow, ContribClaim, ContribTeamView } from './studentView';
 
 
 export interface CourseInfo {
@@ -52,7 +52,7 @@ interface PayloadQuestionBase {
   max_recipients: number | null;
   recipients: Recipient[];
   answers: PayloadAnswer[];
-  /** Optional: not returned by student_get_session yet; see BUILD_NOTES/04-student-ui.md. */
+  /** Returned by student_get_session since migration 20261116000008; kept optional for older payloads. */
   show_responses_to?: VisibilityType[];
   show_giver_name_to?: VisibilityType[];
   show_recipient_name_to?: VisibilityType[];
@@ -101,7 +101,7 @@ export interface ResultsQuestion {
   description: string;
   details: unknown;
   responses: ResultRow[];
-  contrib?: { my_claim: ContribView; team_view_of_me: ContribView };
+  contrib?: { my_claim: ContribClaim; team_view_of_me: ContribTeamView };
 }
 
 export interface StudentResultsData {

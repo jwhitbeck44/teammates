@@ -245,7 +245,7 @@ export function parseRosterCsv(text: string, opts: RosterParseOptions = {}): Ros
 export function buildRosterCsv(students: readonly { section: string; team: string; name: string; email: string; comments?: string | null }[]): string {
   const rows: string[][] = [[...ROSTER_HEADER]];
   for (const s of students) rows.push([s.section, s.team, s.name, s.email, s.comments ?? '']);
-  return toCsv(rows);
+  return toCsv(rows, { neutralize: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -260,11 +260,11 @@ export function studentLink(appUrl: string, accessToken: string): string {
 
 /** CSV of every student's personal link, for mail merge. Cells are formula-safe. */
 export function buildStudentLinksCsv(
-  students: readonly { section: string; team: string; name: string; email: string; access_token: string }[],
+  students: readonly { section: string; team: string; name: string; email: string; token: string }[],
   appUrl: string,
 ): string {
   const rows: string[][] = [[...LINKS_HEADER]];
-  for (const s of students) rows.push([s.section, s.team, s.name, s.email, studentLink(appUrl, s.access_token)]);
+  for (const s of students) rows.push([s.section, s.team, s.name, s.email, studentLink(appUrl, s.token)]);
   return toCsv(rows, { neutralize: true });
 }
 

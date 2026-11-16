@@ -102,7 +102,7 @@ export type ResultsVisibility = (typeof RESULTS_VISIBILITIES)[number];
 export const DISTRIBUTE_MODES = ['none', 'some', 'all'] as const;
 export type DistributeMode = (typeof DISTRIBUTE_MODES)[number];
 
-export type EmailStatus = 'sent' | 'failed' | 'skipped';
+export type EmailStatus = 'pending' | 'sent' | 'failed' | 'skipped';
 
 // ---------------------------------------------------------------------------
 // Database rows (section 5)
@@ -141,8 +141,17 @@ export interface Student {
   name: string;
   email: string;
   comments: string | null;
-  access_token: string;
   created_at: Timestamp;
+}
+
+/** One row of instructor_student_links(): a student's private link token (modify_students only). */
+export interface StudentLink {
+  student_id: Uuid;
+  section: string;
+  team: string;
+  name: string;
+  email: string;
+  token: string;
 }
 
 export interface Session {

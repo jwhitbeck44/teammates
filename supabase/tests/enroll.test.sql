@@ -16,15 +16,15 @@ begin
   perform t.eq(r ->> 'updated', '0', 'updates none');
   perform t.is_true((select section = 'S9' and email = 'new.one@s.edu' and comments = 'hi' from public.students where name = 'New One'), 'trims and lowercases email');
   perform t.is_true((select section = 'Default Section' and team = 'Default Team' from public.students where name = 'No Defaults'), 'blank section and team get defaults');
-  perform t.is_true((select length(access_token) >= 40 from public.students where name = 'New One'), 'new student has an access token');
+  perform t.is_true(length(t.tok_of_email('new.one@s.edu')) >= 40, 'new student has an access token');
 
   -- upsert by email, keeps the token, clears comments
-  declare tok text := (select access_token from public.students where email = 'new.one@s.edu');
+  declare tok text := t.tok_of_email('new.one@s.edu');
   begin
     r := t.enr('[{"section":"S9","team":"T10","name":"Renamed","email":"NEW.ONE@s.edu"}]');
     perform t.eq(r ->> 'updated', '1', 'existing email is updated');
     perform t.eq(r ->> 'created', '0', 'and not created');
-    perform t.is_true((select team = 'T10' and name = 'Renamed' and comments is null and access_token = tok from public.students where email = 'new.one@s.edu'), 'update changes fields, clears comments, keeps token');
+    perform t.is_true((select team = 'T10' and name = 'Renamed' and comments is null and t.tok_of_email('new.one@s.edu') = tok from public.students where email = 'new.one@s.edu'), 'update changes fields, clears comments, keeps token');
   end;
   perform t.eq((select count(*)::text from public.students), (n0 + 2)::text, 'row count after upserts');
 

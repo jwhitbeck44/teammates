@@ -55,6 +55,8 @@ export const ERROR_MESSAGES = {
   invalid_path: 'This giver and recipient combination is not allowed for this question type.',
   invalid_max_recipients: 'The number of recipients must be a whole number of at least 1.',
   invalid_visibility: 'The visibility settings are not valid.',
+  visibility_locked:
+    'This question already has answers, so nobody can be added to who sees them. You can remove people, or change the question type, path or details (which deletes the answers).',
   invalid_number: 'The question number must be a whole number of at least 1.',
   invalid_recommended_length: 'Recommended length must be a whole number of at least 1.',
   too_few_choices: 'Add at least two choices.',

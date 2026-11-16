@@ -92,6 +92,8 @@ Email scheduling needs two Postgres extensions, `pg_cron` (the timer) and `pg_ne
 
 The 15 minute timer needs to know your project URL and the service-role key. They are stored encrypted in Supabase Vault.
 
+The `service_role_key` secret must hold the project's **service_role** key from **Project Settings**, **API** (check in the dashboard). That is the same value the Edge Functions see as `SUPABASE_SERVICE_ROLE_KEY`; the email function compares the two and answers 401 to every timer call if they differ. If the project shows new-style `sb_secret_...` keys, do not paste one of those: use the legacy `service_role` JWT (it starts with `eyJ`; look for the legacy API keys tab).
+
 1. In Supabase open **SQL Editor**, then **New query**.
 2. Paste this, replacing the two placeholders (keep the single quotes), and click **Run**:
 
@@ -117,7 +119,7 @@ In Supabase open **Authentication** (check in the dashboard for the exact page n
    - **Site URL**: your Pages address, for example `https://<your-user>.github.io/<repo-name>/`.
    - **Redirect URLs**: add the same address, and the same address followed by `**` (for example `https://<your-user>.github.io/<repo-name>/**`).
 3. **Who can create an account.** The allowlist (step 9) and course invites work by email address. So the app must know that the person signing in really owns that address. Pick one of these two setups.
-   - **Setup A, no email needed (recommended to start):** turn **Allow new users to sign up** off, and turn **Confirm email** off. Then create each instructor's account yourself: **Authentication**, **Users**, **Add user**, **Create new user**, enter their email and a temporary password, and tick **Auto confirm user** (check in the dashboard for these names). Send them the password yourself and ask them to change it with "Forgot password" once email works, or just tell them to keep it private. Nobody else can create an account.
+   - **Setup A, no email needed (recommended to start):** turn **Allow new users to sign up** off, and turn **Confirm email** off. Then create each instructor's account yourself: **Authentication**, **Users**, **Add user**, **Create new user**, enter their email and a temporary password, and tick **Auto confirm user** (check in the dashboard for these names). Send them the password yourself and ask them to change it with "Forgot password" once email works, or just tell them to keep it private. Nobody else can create an account. Also keep **Secure email change** on (**Authentication**, **Sign In / Providers**, Email; check in the dashboard). The remaining risk: a person who already has an instructor account could change their account email to claim a pending invite or allowlist entry for another address. Only give accounts to people you trust, and remove allowlist rows once they are used.
    - **Setup B, self sign-up:** leave **Allow new users to sign up** on and turn **Confirm email** on. Each new instructor must click a link in an email before signing in, which proves they own the address. This needs working email: Supabase's built-in sender is limited to a few emails per hour and, on some plans, only to members of your Supabase organization. Set Resend (step 10) as the custom SMTP sender in Supabase (check in the dashboard) before relying on this.
    - Do not combine sign-up **on** with Confirm email **off**. In that combination anyone who knows an allowlisted or invited instructor's email address can create an account under that address and get that instructor's access.
 

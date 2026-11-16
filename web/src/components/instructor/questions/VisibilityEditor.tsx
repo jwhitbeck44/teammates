@@ -25,12 +25,14 @@ export function VisibilityEditor({
   giver,
   recipient,
   lists,
+  responseCount = 0,
   onChange,
 }: {
   type: QuestionType;
   giver: GiverType;
   recipient: RecipientType;
   lists: VisibilityLists;
+  responseCount?: number;
   onChange: (l: VisibilityLists) => void;
 }) {
   const presets = presetsFor(type, giver, recipient);
@@ -42,6 +44,13 @@ export function VisibilityEditor({
 
   return (
     <div>
+      {responseCount > 0 && (
+        <p className="ins-notice">
+          This question already has {responseCount} answer{responseCount === 1 ? '' : 's'}. You can remove people from
+          these lists but not add anyone, because students answered on the understanding of who would see their
+          answers. Changing the question type, path or details deletes the answers and lifts this limit.
+        </p>
+      )}
       <label>
         Who can see the responses
         <select

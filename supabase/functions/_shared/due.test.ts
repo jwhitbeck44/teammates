@@ -1,10 +1,11 @@
 // Unit tests for the pure due-email logic. Run: deno test supabase/functions/_shared/
 import assert from "node:assert/strict";
 import {
-  copyForInstructor, normalizeEmail, planDueEmails, planRecovery, planReminders, recoveryRateLimited,
+  copyForInstructor, normalizeEmail, studentSubmitDeadline, RECOVERY_GLOBAL_LIMIT, planDueEmails, planRecovery, planReminders, recoveryRateLimited,
   isPublished, type DueInput,
 } from "./due.ts";
 import { sendAll } from "./send.ts";
+import { deliverRecovery } from "./recovery.ts";
 import { sendViaResend } from "./resend.ts";
 import { allowedOrigin } from "./http.ts";
 import { formatDeadline, renderSessionEmail, submitLink, resultsLink } from "./templates.ts";
@@ -341,4 +342,74 @@ Deno.test("CORS: GitHub Pages origin from APP_URL and localhost are allowed, oth
   assert.equal(allowedOrigin("http://localhost:5173", app), "http://localhost:5173");
   assert.equal(allowedOrigin("https://evil.example", app), null);
   assert.equal(allowedOrigin(null, app), null);
+});
+
+Deno.test("submit deadline is greatest(extension, closes_at + grace), as SQL student_deadline", () => {
+  const s = session({ closes_at: at(-0.2), grace_minutes: 15 }); // closed 12 minutes ago, grace still running
+  const base = Date.parse(s.closes_at) + 15 * 60_000;
+  assert.equal(studentSubmitDeadline(s, undefined), base);
+  // an extension shorter than the grace period neither shortens nor replaces it
+  assert.equal(studentSubmitDeadline(s, { session_id: "se1", student_id: "st1", closes_at: at(-1) }), base);
+  // a longer extension wins
+  assert.equal(studentSubmitDeadline(s, { session_id: "se1", student_id: "st1", closes_at: at(5) }), Date.parse(at(5)));
+  // so a reminder still goes to a student whose short extension is already over while the grace period runs
+  const r = planReminders({ now: NOW, appUrl: APP, kind: "submit", course, session: s, students: [student(1)],
+    extensions: [{ session_id: "se1", student_id: "st1", closes_at: at(-1) }] });
+  assert.ok(r.ok && r.emails.length === 1 && r.ignored === 0);
+});
+
+Deno.test("recovery rate limit counts pending rows (rows are written before sending)", () => {
+  const row = (status: EmailLogRow["status"]): EmailLogRow =>
+    ({ session_id: null, kind: "recovery", to_email: "a@x.edu", student_id: null, status, created_at: iso(NOW.getTime() - 60_000) });
+  assert.equal(recoveryRateLimited(NOW, "a@x.edu", [row("pending"), row("pending"), row("pending")]), true);
+  assert.equal(recoveryRateLimited(NOW, "a@x.edu", [row("pending"), row("pending")]), false);
+  assert.equal(RECOVERY_GLOBAL_LIMIT, 200);
+});
+
+const recMail = (): PlannedEmail => ({ kind: "recovery", sessionId: null, studentId: null, to: "a@x.edu", subject: "s", html: "<p>h</p>", text: "t" });
+
+Deno.test("deliverRecovery claims the slot before the send and records the result on that row", async () => {
+  const events: string[] = [];
+  const fetchFn = (() => { events.push("send"); return Promise.resolve(new Response(JSON.stringify({ id: "m1" }), { status: 200 })); }) as unknown as typeof fetch;
+  const out = await deliverRecovery(recMail(), {
+    resend: { apiKey: "k", from: "App <a@x.edu>" }, fetchFn,
+    claim: () => { events.push("claim"); return Promise.resolve("row1"); },
+    finish: (id, status) => { events.push(`finish:${id}:${status}`); return Promise.resolve(); },
+  });
+  assert.equal(out, "sent");
+  assert.deepEqual(events, ["claim", "send", "finish:row1:sent"]);
+});
+
+Deno.test("deliverRecovery sends nothing when the limit refuses the claim", async () => {
+  let sends = 0;
+  const out = await deliverRecovery(recMail(), {
+    resend: { apiKey: "k", from: "App <a@x.edu>" }, fetchFn: (() => { sends++; return Promise.reject(new Error("no")); }) as unknown as typeof fetch,
+    claim: () => Promise.resolve(null),
+    finish: () => Promise.reject(new Error("must not be called")),
+  });
+  assert.equal(out, "limited");
+  assert.equal(sends, 0);
+});
+
+Deno.test("deliverRecovery: parallel requests get at most the allowed number of sends", async () => {
+  // a claim function that behaves like claim_recovery_slot: one at a time, limit 3
+  let claimed = 0;
+  const claim = () => { if (claimed >= 3) return Promise.resolve(null); claimed++; return Promise.resolve(`row${claimed}`); };
+  let sends = 0;
+  const fetchFn = (() => { sends++; return Promise.resolve(new Response(JSON.stringify({ id: "m" }), { status: 200 })); }) as unknown as typeof fetch;
+  const outs = await Promise.all(Array.from({ length: 20 }, () => deliverRecovery(recMail(), {
+    resend: { apiKey: "k", from: "App <a@x.edu>" }, fetchFn, claim, finish: () => Promise.resolve(),
+  })));
+  assert.equal(outs.filter((o) => o === "sent").length, 3);
+  assert.equal(outs.filter((o) => o === "limited").length, 17);
+  assert.equal(sends, 3);
+});
+
+Deno.test("deliverRecovery records skipped and failed results on the claimed row", async () => {
+  const seen: string[] = [];
+  const finish = (_id: string, status: string) => { seen.push(status); return Promise.resolve(); };
+  assert.equal(await deliverRecovery(recMail(), { resend: null, claim: () => Promise.resolve("r"), finish }), "skipped");
+  const bad = (() => Promise.resolve(new Response(JSON.stringify({ message: "nope" }), { status: 422 }))) as unknown as typeof fetch;
+  assert.equal(await deliverRecovery(recMail(), { resend: { apiKey: "k", from: "a@x.edu" }, fetchFn: bad, claim: () => Promise.resolve("r"), finish }), "failed");
+  assert.deepEqual(seen, ["skipped", "failed"]);
 });

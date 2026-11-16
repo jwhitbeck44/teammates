@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deleteStudent, listStudents, regenerateStudentToken, updateStudent } from '../../../api/instructor';
+import { deleteStudent, listStudentLinks, listStudents, regenerateStudentToken, updateStudent } from '../../../api/instructor';
 import { buildStudentLinksCsv, studentLink } from '../../../lib/csv';
 import { errorMessage } from '../../../lib/errors';
 import { sortRoster } from '../../../lib/recipients';
@@ -59,11 +59,14 @@ export default function StudentsTab({ course, can }: { course: Course; can: (p: 
   const [copied, setCopied] = useState<string | null>(null);
   const action = useAction();
   const canModify = can('modify_students');
+  // Private links are only fetched for roles that may see them (modify_students).
+  const links = useLoad(() => (canModify ? listStudentLinks(course.id) : Promise.resolve([])), [course.id, canModify]);
+  const tokenOf = new Map((links.data ?? []).map((l) => [l.student_id, l.token]));
   const roster = sortRoster(students.data ?? []);
 
   async function regenerate(s: Student) {
     if (!window.confirm(`Make a new link for ${s.name}? The old link stops working.`)) return;
-    if (await action.run(() => regenerateStudentToken(s.id))) students.reload();
+    if (await action.run(() => regenerateStudentToken(s.id))) links.reload();
   }
 
   async function remove(s: Student) {
@@ -72,17 +75,19 @@ export default function StudentsTab({ course, can }: { course: Course; can: (p: 
   }
 
   async function copyLink(s: Student) {
+    const token = tokenOf.get(s.id);
+    if (!token) return;
     try {
-      await navigator.clipboard.writeText(studentLink(appBaseUrl(), s.access_token));
+      await navigator.clipboard.writeText(studentLink(appBaseUrl(), token));
       setCopied(s.id);
       setTimeout(() => setCopied((c) => (c === s.id ? null : c)), 2000);
     } catch {
-      window.prompt('Copy this link', studentLink(appBaseUrl(), s.access_token));
+      window.prompt('Copy this link', studentLink(appBaseUrl(), token));
     }
   }
 
   function downloadLinks() {
-    downloadText(safeFilename(course.code, 'student_links') + '.csv', buildStudentLinksCsv(roster, appBaseUrl()));
+    downloadText(safeFilename(course.code, 'student_links') + '.csv', buildStudentLinksCsv(links.data ?? [], appBaseUrl()));
   }
 
   let lastSection = '';
@@ -90,16 +95,21 @@ export default function StudentsTab({ course, can }: { course: Course; can: (p: 
   return (
     <div>
       <ErrorBox error={students.error} />
+      <ErrorBox error={links.error} />
       <ErrorBox error={action.error} />
       <div className="ins-actions">
         {canModify && <Link className="ins-btn" to={`/courses/${course.id}/enroll`}>Enroll students</Link>}
-        <button type="button" onClick={downloadLinks} disabled={roster.length === 0}>Download student links CSV</button>
+        {canModify && (
+          <button type="button" onClick={downloadLinks} disabled={roster.length === 0 || !links.data}>Download student links CSV</button>
+        )}
         <span className="ins-muted">{roster.length} students</span>
       </div>
-      <p className="ins-hint">
-        The links CSV holds every student's private link. Treat it like a list of passwords: anyone with a link can
-        submit as that student.
-      </p>
+      {canModify && (
+        <p className="ins-hint">
+          The links CSV holds every student's private link. Treat it like a list of passwords: anyone with a link can
+          submit as that student.
+        </p>
+      )}
       {students.loading && !students.data && <Loading />}
       {students.data && roster.length === 0 && <p className="ins-muted">No students yet.</p>}
       {roster.length > 0 && (
@@ -110,7 +120,7 @@ export default function StudentsTab({ course, can }: { course: Course; can: (p: 
                 <th>Name</th>
                 <th>Email</th>
                 <th>Comments</th>
-                <th>Link</th>
+                {canModify && <th>Link</th>}
                 <th>Actions</th>
               </tr>
             </thead>
@@ -135,7 +145,9 @@ export default function StudentsTab({ course, can }: { course: Course; can: (p: 
                         <td>{s.name}</td>
                         <td>{s.email}</td>
                         <td>{s.comments ?? ''}</td>
-                        <td><button type="button" className="ins-link" onClick={() => void copyLink(s)}>{copied === s.id ? 'Copied' : 'Copy link'}</button></td>
+                        {canModify && (
+                          <td><button type="button" className="ins-link" onClick={() => void copyLink(s)} disabled={!tokenOf.has(s.id)}>{copied === s.id ? 'Copied' : 'Copy link'}</button></td>
+                        )}
                         <td className="ins-actions-cell">
                           {canModify && <button type="button" onClick={() => setEditing(s.id)}>Edit</button>}
                           {canModify && <button type="button" onClick={() => void regenerate(s)} disabled={action.busy}>New link</button>}

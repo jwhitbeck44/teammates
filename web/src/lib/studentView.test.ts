@@ -108,10 +108,10 @@ describe('contribution summary', () => {
   it('builds "Your claim" and "Your team\'s view of you"', () => {
     const out = contribSummaryLines({
       my_claim: { own: 110, others: [100, 90] },
-      team_view_of_me: { own: 100, others: [105] },
+      team_view_of_me: { own: 100 },
     });
     expect(out.map((b) => b.heading)).toEqual(['Your claim', "Your team's view of you"]);
     expect(out[0].lines).toEqual(['You: Equal share + 10%', 'Your teammates: Equal share, Equal share - 10%']);
-    expect(out[1].lines).toEqual(['You: Equal share', 'Your teammates: Equal share + 5%']);
+    expect(out[1].lines).toEqual(['You: Equal share']);
   });
 });

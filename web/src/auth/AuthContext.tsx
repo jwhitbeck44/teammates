@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../api/client';
+import { clearRecovery, onRecovery, recoveryPending } from './recovery';
 
 interface AuthState {
   /** True until the first session lookup has finished. */
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [claimedFor, setClaimedFor] = useState<string | null>(null);
-  const [recovering, setRecovering] = useState(false);
+  const [recovering, setRecovering] = useState(recoveryPending);
 
   useEffect(() => {
     let active = true;
@@ -40,13 +41,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       if (event === 'PASSWORD_RECOVERY') setRecovering(true);
       if (event === 'SIGNED_OUT') {
+        clearRecovery();
         setRecovering(false);
         setClaimedFor(null);
       }
     });
+    // The recovery event may already have happened; recovery.ts remembers it and tells us about later ones.
+    setRecovering(recoveryPending());
+    const offRecovery = onRecovery(() => setRecovering(true));
     return () => {
       active = false;
       sub.subscription.unsubscribe();
+      offRecovery();
     };
   }, []);
 
@@ -55,9 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     let active = true;
-    void supabase.rpc('claim_instructor_invites').then(() => {
-      if (active) setClaimedFor(userId);
-    });
+    // A failed claim (for example a network error) must not leave RequireAuth on "Loading..." for good.
+    void supabase
+      .rpc('claim_instructor_invites')
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+      .then(() => {
+        if (active) setClaimedFor(userId);
+      });
     return () => {
       active = false;
     };
@@ -89,7 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async updatePassword(password) {
         const { error } = await supabase.auth.updateUser({ password });
-        if (!error) setRecovering(false);
+        if (!error) {
+          clearRecovery();
+          setRecovering(false);
+        }
         return error ? error.message : null;
       },
     }),

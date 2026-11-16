@@ -531,6 +531,17 @@ export function validateAnswers(
     default:
       errs.add('invalid_type');
   }
+  // Size limits (SQL checks them after the shape checks, so they only show when nothing else is wrong)
+  if (errs.list.length === 0) {
+    for (const a of answers) {
+      const v = a.answer as Record<string, unknown> | null | undefined;
+      const tooLongText = (x: unknown) => typeof x === 'string' && x.length > LIMITS.answerText;
+      if (isObj(v) && (tooLongText(v.text) || tooLongText(v.other))) errs.add('too_long', { recipient_key: a.recipient_key });
+      else if (typeof a.giver_comment === 'string' && a.giver_comment.length > LIMITS.giverComment) {
+        errs.add('too_long', { recipient_key: a.recipient_key, field: 'giver_comment' });
+      }
+    }
+  }
   return errs.list;
 }
 
@@ -554,6 +565,9 @@ export const LIMITS = {
   comments: 500,
   sectionSize: 100,
   sessionName: 64,
+  /** Longest text (or "other") answer, in characters; same limit in SQL. */
+  answerText: 10000,
+  giverComment: 2000,
 } as const;
 
 export const DEFAULT_SECTION = 'Default Section';

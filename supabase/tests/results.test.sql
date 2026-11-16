@@ -151,7 +151,7 @@ begin
   perform t.eq(c #>> '{contrib,my_claim,own}', '100', 'contrib: Alice claim of self');
   perform t.eq(c #>> '{contrib,my_claim,others}', '[100, 100]', 'contrib: Alice claims on others');
   perform t.eq(c #>> '{contrib,team_view_of_me,own}', '150', 'contrib: team view of Alice');
-  perform t.eq(c #>> '{contrib,team_view_of_me,others}', '[75, 75]', 'contrib: team view of the others, sorted descending');
+  perform t.is_true(not (c -> 'contrib' -> 'team_view_of_me' ? 'others'), 'contrib: the team view of the teammates is not returned (F4)');
   perform t.is_true(c::text !~ '"answer"' and c::text !~ t.id('Bob')::text, 'contrib: nothing individual or identifying');
   perform t.as_anon();
   r := public.student_get_results(t.tok('Bob'), (select s from t.q where n = 9));

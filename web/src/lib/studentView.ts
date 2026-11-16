@@ -143,15 +143,21 @@ export function contribFigureText(value: number): string {
   return t === '' ? String(value) : t;
 }
 
-export interface ContribView {
+/** The student's own claim: their rating of themself and of each teammate (descending). */
+export interface ContribClaim {
   own: number;
   others: number[];
 }
 
+/** The team's view of the student only. Teammates' figures are not returned (they would let a student work out a teammate's ratings). */
+export interface ContribTeamView {
+  own: number;
+}
+
 /** Lines for the contribution summary, given the server's `contrib` object. */
 export function contribSummaryLines(contrib: {
-  my_claim: ContribView;
-  team_view_of_me: ContribView;
+  my_claim: ContribClaim;
+  team_view_of_me: ContribTeamView;
 }): { heading: string; lines: string[] }[] {
   const list = (xs: number[]) => xs.map(contribFigureText).join(', ');
   return [
@@ -164,12 +170,7 @@ export function contribSummaryLines(contrib: {
     },
     {
       heading: "Your team's view of you",
-      lines: [
-        `You: ${contribFigureText(contrib.team_view_of_me.own)}`,
-        ...(contrib.team_view_of_me.others.length > 0
-          ? [`Your teammates: ${list(contrib.team_view_of_me.others)}`]
-          : []),
-      ],
+      lines: [`You: ${contribFigureText(contrib.team_view_of_me.own)}`],
     },
   ];
 }

@@ -148,6 +148,7 @@ export default function SessionEdit() {
                 key={q.id}
                 initial={toDraft(q)}
                 isNew={false}
+                responseCount={responseCount(q.id)}
                 busy={saveAction.busy}
                 error={saveAction.error}
                 warning={(d) => {

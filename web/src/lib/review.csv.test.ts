@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildNonSubmitterCsv,
   buildResultsCsv,
+  buildRosterCsv,
   buildStudentLinksCsv,
   neutralizeFormula,
   parseCsv,
@@ -59,8 +60,8 @@ describe('review: CSV formula injection', () => {
   });
 
   it('links and non-submitter CSVs are formula-safe', () => {
-    const students = [{ section: EVIL[0], team: EVIL[1], name: EVIL[2], email: EVIL[3], access_token: 'tok', comments: null }];
-    for (const text of [buildStudentLinksCsv(students, 'https://x.github.io/app'), buildNonSubmitterCsv(students)]) {
+    const students = [{ section: EVIL[0], team: EVIL[1], name: EVIL[2], email: EVIL[3], token: 'tok', comments: null }];
+    for (const text of [buildStudentLinksCsv(students, 'https://x.github.io/app'), buildNonSubmitterCsv(students), buildRosterCsv(students)]) {
       for (const r of parseCsv(text)) for (const c of r) expect(unsafe(c)).toBe(false);
     }
   });

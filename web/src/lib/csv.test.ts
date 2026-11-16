@@ -178,8 +178,8 @@ describe('student links CSV', () => {
   it('writes Section, Team, Name, Email, Link and parses back', () => {
     const csv = buildStudentLinksCsv(
       [
-        { section: 'S1', team: 'Red', name: 'Ann', email: 'ann@x.edu', access_token: 'abc-_123' },
-        { section: 'S1', team: 'Red', name: '=SUM(A1)', email: 'bob@x.edu', access_token: 'def' },
+        { section: 'S1', team: 'Red', name: 'Ann', email: 'ann@x.edu', token: 'abc-_123' },
+        { section: 'S1', team: 'Red', name: '=SUM(A1)', email: 'bob@x.edu', token: 'def' },
       ],
       'https://app.example',
     );

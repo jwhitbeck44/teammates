@@ -248,8 +248,6 @@ export interface ContribStudentView {
   my_claim_of_others: number[];
   /** What the team thinks of the student, scaled to the student's own claims. */
   team_view_of_me: number;
-  /** The team's view of the others (scaled the same way), descending. */
-  team_view_of_others: number[];
 }
 
 /** The per-student view of section 9: `my_claim` and `team_view_of_me`. */
@@ -261,7 +259,6 @@ export function contribStudentView(result: TeamEvalResult, index: number): Contr
     my_claim_of_me: mine[index],
     my_claim_of_others: others(mine),
     team_view_of_me: team[index],
-    team_view_of_others: others(team),
   };
 }
 

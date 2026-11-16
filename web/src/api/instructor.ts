@@ -16,6 +16,7 @@ import type {
   ResultsVisibility,
   Session,
   Student,
+  StudentLink,
   Uuid,
 } from '../lib/types';
 
@@ -180,9 +181,12 @@ export async function removeInstructor(id: Uuid): Promise<void> {
 // ---------------------------------------------------------------------------
 // Students
 
+// access_token is not readable by clients (column grant); the links come from instructor_student_links.
+const STUDENT_COLUMNS = 'id, course_id, section, team, name, email, comments, created_at';
+
 export function listStudents(courseId: Uuid): Promise<Student[]> {
   return fetchAll<Student>((a, b) =>
-    supabase.from('students').select('*').eq('course_id', courseId).order('section').order('team').order('name').range(a, b),
+    supabase.from('students').select(STUDENT_COLUMNS).eq('course_id', courseId).order('section').order('team').order('name').range(a, b),
   );
 }
 
@@ -202,6 +206,11 @@ export async function updateStudent(id: Uuid, patch: StudentInputRow): Promise<v
 export async function deleteStudent(id: Uuid): Promise<void> {
   const rows = await run<{ id: Uuid }[]>(supabase.from('students').delete().eq('id', id).select('id'));
   if (rows.length === 0) throw new ApiError('forbidden');
+}
+
+/** Every student's private link token. Needs modify_students; other roles get `forbidden`. */
+export function listStudentLinks(courseId: Uuid): Promise<StudentLink[]> {
+  return run<StudentLink[]>(supabase.rpc('instructor_student_links', { p_course: courseId }));
 }
 
 export async function regenerateStudentToken(studentId: Uuid): Promise<string> {

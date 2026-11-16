@@ -58,7 +58,7 @@ export interface EmailLogRow {
   kind: string;
   to_email: string;
   student_id: string | null;
-  status: "sent" | "failed" | "skipped";
+  status: "pending" | "sent" | "failed" | "skipped";
   created_at: string;
 }
 

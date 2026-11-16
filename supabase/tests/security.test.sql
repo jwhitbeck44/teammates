@@ -188,7 +188,7 @@ select t.as_user(t.id('bowner'), 'bowner@b.edu');
 do $$
 declare old text; new jsonb;
 begin
-  select access_token into old from public.students where name = 'Zed';
+  old := t.tok('Zed');
   new := public.regenerate_student_token(t.id('Zed'));
   perform t.is_true(new ->> 'access_token' <> old and length(new ->> 'access_token') >= 40, 'regenerated token differs and is long');
   perform t.reset();

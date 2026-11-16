@@ -291,11 +291,11 @@ export function canView(lists: VisibilityLists, response: ResponseParties, viewe
   if (response.giver_key === viewerKey) return { ...ALL };
   const any = (list: VisibilityType[]) => list.some((vt) => qualifies(vt, response, viewerKey, viewerTeamKey));
   if (!any(lists.show_responses_to)) return { ...NONE };
-  return {
-    sees_response: true,
-    sees_giver_name: any(lists.show_giver_name_to),
-    sees_recipient_name: any(lists.show_recipient_name_to),
-  };
+  const seesGiver = any(lists.show_giver_name_to);
+  let seesRecipient = any(lists.show_recipient_name_to);
+  // When the recipient is the giver, showing the recipient name would reveal a hidden giver.
+  if (response.recipient_key === response.giver_key && !seesGiver) seesRecipient = false;
+  return { sees_response: true, sees_giver_name: seesGiver, sees_recipient_name: seesRecipient };
 }
 
 /** Names to display for a viewer: the real name when allowed, else "Anonymous". */

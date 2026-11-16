@@ -159,7 +159,7 @@ select t.eq((select count(*)::text from information_schema.column_privileges whe
 select t.eq((select count(*)::text from information_schema.table_privileges where grantee in ('anon', 'public') and table_schema = 'public'), '0', 'anon / public hold no table privilege in public');
 select t.eq((select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')),
-  'can_create_course,claim_instructor_invites,copy_session,enroll_students,has_perm,instructor_contrib_results,instructor_get_submission,instructor_moderate,instructor_preview,instructor_submit,jwt_email,new_access_token,publish_session,regenerate_student_token,session_course,student_get_results,student_get_session,student_portal,student_submit,unpublish_session',
+  'can_create_course,claim_instructor_invites,copy_session,enroll_students,has_perm,instructor_contrib_results,instructor_get_submission,instructor_moderate,instructor_preview,instructor_student_links,instructor_submit,jwt_email,new_access_token,publish_session,regenerate_student_token,session_course,student_get_results,student_get_session,student_portal,student_submit,unpublish_session',
   'authenticated may execute exactly the expected functions');
 select t.eq((select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public' and has_function_privilege('public', p.oid, 'execute')), null, 'PUBLIC may execute no function in public');

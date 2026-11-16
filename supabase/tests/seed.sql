@@ -9,6 +9,8 @@ create table t.ids (name text primary key, id uuid not null);
 create function t.id(p_name text) returns uuid language sql stable as $$ select id from t.ids where name = p_name $$;
 create function t.tok(p_name text) returns text language sql stable security definer as
   $$ select access_token from public.students where id = t.id(p_name) $$;
+create function t.tok_of_email(p_email text) returns text language sql stable security definer as
+  $$ select access_token from public.students where email = p_email $$;
 create function t.sk(p_name text) returns text language sql stable as $$ select 's:' || t.id(p_name)::text $$;
 
 insert into auth.users (id, email) values

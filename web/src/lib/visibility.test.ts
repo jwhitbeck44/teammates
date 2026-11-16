@@ -161,6 +161,16 @@ describe('canView for students (same logic as SQL can_view)', () => {
     expect(canView(preset('instructors_only'), toTeammate, ann)).toEqual({ sees_response: true, sees_giver_name: true, sees_recipient_name: true });
   });
 
+  it('hides the recipient name when the recipient is the giver and the giver name is hidden', () => {
+    const selfRow: ResponseParties = { giver_key: 's:2', recipient_key: 's:2', giver_team_key: 't:A|Red', recipient_team_key: 't:A|Red' };
+    const l: VisibilityLists = { show_responses_to: ['students'], show_giver_name_to: [], show_recipient_name_to: ['students'] };
+    expect(canView(l, selfRow, cy)).toEqual({ sees_response: true, sees_giver_name: false, sees_recipient_name: false });
+    const named: VisibilityLists = { ...l, show_giver_name_to: ['students'] };
+    expect(canView(named, selfRow, cy)).toEqual({ sees_response: true, sees_giver_name: true, sees_recipient_name: true });
+    // a different recipient keeps its own list
+    expect(canView(l, toOtherTeamMember, cy).sees_recipient_name).toBe(true);
+  });
+
   it('preset: shown anonymously to recipient, visible to instructors', () => {
     const l = preset('recipient_and_instructors');
     expect(canView(l, toTeammate, bob)).toEqual({ sees_response: true, sees_giver_name: false, sees_recipient_name: true });

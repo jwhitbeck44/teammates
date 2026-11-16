@@ -32,6 +32,8 @@ export const PUBLISHED_WINDOW_MS = 7 * DAY;
 /** Recovery rate limit: at most this many per email per hour. */
 export const RECOVERY_LIMIT = 3;
 export const RECOVERY_WINDOW_MS = HOUR;
+/** Recovery emails per hour across all addresses (claim_recovery_slot enforces it in SQL). */
+export const RECOVERY_GLOBAL_LIMIT = 200;
 export const RECOVERY_LOOKBACK_MS = 180 * DAY;
 
 const t = (iso: string) => Date.parse(iso);
@@ -56,9 +58,10 @@ export function publishedSince(s: SessionRow, now: Date): number | null {
   return Math.min(...times);
 }
 
-/** Per-student deadline for submitting: the extension if present, else closes_at + grace. */
+/** Per-student deadline for submitting: greatest(extension, closes_at + grace), as SQL student_deadline (ARCHITECTURE.md section 5). */
 export function studentSubmitDeadline(s: SessionRow, ext: ExtensionRow | undefined): number {
-  return ext ? t(ext.closes_at) : t(s.closes_at) + s.grace_minutes * 60_000;
+  const base = t(s.closes_at) + s.grace_minutes * 60_000;
+  return ext ? Math.max(t(ext.closes_at), base) : base;
 }
 
 /** Per-student deadline shown in emails: the extension if present, else closes_at (no grace). */
@@ -187,7 +190,7 @@ export function planDueEmails(input: DueInput): SessionPlan[] {
   return plans;
 }
 
-/** Recovery rate limit: true when this email already got RECOVERY_LIMIT or more recovery rows in the last hour. */
+/** Recovery rate limit: true when this email already got RECOVERY_LIMIT or more recovery rows (any status, pending included) in the last hour. */
 export function recoveryRateLimited(now: Date, email: string, log: EmailLogRow[]): boolean {
   const since = now.getTime() - RECOVERY_WINDOW_MS;
   const n = log.filter((l) => l.kind === "recovery" && l.to_email === email && t(l.created_at) > since).length;

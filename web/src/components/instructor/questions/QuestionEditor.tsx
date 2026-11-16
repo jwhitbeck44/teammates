@@ -24,6 +24,7 @@ export default function QuestionEditor({
   initial,
   isNew,
   warning,
+  responseCount = 0,
   busy,
   error,
   onSave,
@@ -33,6 +34,8 @@ export default function QuestionEditor({
   isNew: boolean;
   /** Text shown above the buttons when saving would delete responses (computed by the parent). */
   warning?: (d: QuestionDraft) => string | null;
+  /** Number of answers already stored for this question (0 for a new one). */
+  responseCount?: number;
   busy: boolean;
   error: string | null;
   onSave: (d: QuestionDraft) => void;
@@ -121,6 +124,7 @@ export default function QuestionEditor({
         giver={draft.giver_type}
         recipient={draft.recipient_type}
         lists={draft}
+        responseCount={responseCount}
         onChange={(l) => setDraft({ ...draft, ...l })}
       />
 
