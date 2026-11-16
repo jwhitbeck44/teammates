@@ -1,0 +1,1784 @@
+{
+  "constants": {
+    "NA": -9999,
+    "NSB": -999,
+    "NSU": -101
+  },
+  "source": "TEAMMATES src/test/java/teammates/common/datatransfer/TeamEvalResultTest.java (GPL-2.0)",
+  "cases": [
+    {
+      "name": "testCalculatePoints_1",
+      "input": [
+        [
+          100,
+          100,
+          100,
+          100
+        ],
+        [
+          100,
+          100,
+          100,
+          100
+        ],
+        [
+          100,
+          100,
+          100,
+          100
+        ],
+        [
+          100,
+          100,
+          100,
+          100
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            -9999,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            -9999,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          100,
+          100,
+          100,
+          100
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_2",
+      "input": [
+        [
+          100,
+          100,
+          100,
+          100
+        ],
+        [
+          110,
+          110,
+          110,
+          110
+        ],
+        [
+          90,
+          90,
+          90,
+          90
+        ],
+        [
+          10,
+          10,
+          10,
+          10
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            -9999,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            -9999,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          100,
+          100,
+          100,
+          100
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            110,
+            110,
+            110,
+            110
+          ],
+          [
+            90,
+            90,
+            90,
+            90
+          ],
+          [
+            10,
+            10,
+            10,
+            10
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_3",
+      "input": [
+        [
+          100,
+          100,
+          100,
+          100
+        ],
+        [
+          110,
+          110,
+          110,
+          110
+        ],
+        [
+          90,
+          90,
+          90,
+          90
+        ],
+        [
+          70,
+          80,
+          110,
+          120
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            100,
+            100
+          ],
+          [
+            74,
+            84,
+            116,
+            126
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            100,
+            100,
+            100
+          ],
+          [
+            100,
+            -9999,
+            100,
+            100
+          ],
+          [
+            100,
+            100,
+            -9999,
+            100
+          ],
+          [
+            81,
+            92,
+            127,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          94,
+          97,
+          109,
+          100
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            94,
+            97,
+            109,
+            100
+          ],
+          [
+            103,
+            107,
+            120,
+            110
+          ],
+          [
+            84,
+            88,
+            98,
+            90
+          ],
+          [
+            89,
+            93,
+            104,
+            95
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_4",
+      "input": [
+        [
+          -999,
+          -999,
+          -999,
+          -999
+        ],
+        [
+          -101,
+          -101,
+          -101,
+          -101
+        ],
+        [
+          -101,
+          -101,
+          -101,
+          -101
+        ],
+        [
+          -999,
+          -999,
+          -999,
+          -999
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            -999,
+            -999,
+            -999,
+            -999
+          ],
+          [
+            -101,
+            -101,
+            -101,
+            -101
+          ],
+          [
+            -101,
+            -101,
+            -101,
+            -101
+          ],
+          [
+            -999,
+            -999,
+            -999,
+            -999
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -101,
+            -9999,
+            -101,
+            -101
+          ],
+          [
+            -101,
+            -101,
+            -9999,
+            -101
+          ],
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          -9999,
+          -9999,
+          -9999,
+          -9999
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_5",
+      "input": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -9999,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            -9999,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_6",
+      "input": [
+        [
+          0,
+          0,
+          0,
+          -101
+        ],
+        [
+          0,
+          0,
+          0,
+          -101
+        ],
+        [
+          -999,
+          -999,
+          -999,
+          -999
+        ],
+        [
+          0,
+          0,
+          -101,
+          -101
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            0,
+            0,
+            0,
+            -101
+          ],
+          [
+            0,
+            0,
+            0,
+            -101
+          ],
+          [
+            -999,
+            -999,
+            -999,
+            -999
+          ],
+          [
+            0,
+            0,
+            -101,
+            -101
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            0,
+            0,
+            -101
+          ],
+          [
+            0,
+            -9999,
+            0,
+            -101
+          ],
+          [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            0,
+            0,
+            -101,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          0,
+          0,
+          0,
+          -9999
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            0,
+            0,
+            0,
+            -9999
+          ],
+          [
+            0,
+            0,
+            0,
+            -9999
+          ],
+          [
+            0,
+            0,
+            0,
+            -9999
+          ],
+          [
+            0,
+            0,
+            0,
+            -9999
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_7",
+      "input": [
+        [
+          25,
+          25,
+          75
+        ],
+        [
+          -999,
+          -999,
+          -999
+        ],
+        [
+          -999,
+          -999,
+          -999
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            60,
+            60,
+            180
+          ],
+          [
+            -999,
+            -999,
+            -999
+          ],
+          [
+            -999,
+            -999,
+            -999
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            50,
+            150
+          ],
+          [
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          -9999,
+          50,
+          150
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            -9999,
+            25,
+            75
+          ],
+          [
+            -9999,
+            50,
+            150
+          ],
+          [
+            -9999,
+            50,
+            150
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_8",
+      "input": [
+        [
+          25,
+          -101,
+          -101
+        ],
+        [
+          -999,
+          -999,
+          -999
+        ],
+        [
+          -999,
+          -999,
+          -999
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            100,
+            -101,
+            -101
+          ],
+          [
+            -999,
+            -999,
+            -999
+          ],
+          [
+            -999,
+            -999,
+            -999
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            -101,
+            -101
+          ],
+          [
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          -9999,
+          -9999,
+          -9999
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999
+          ],
+          [
+            -9999,
+            -9999,
+            -9999
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_9",
+      "input": [
+        [
+          50,
+          150
+        ],
+        [
+          80,
+          80
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            50,
+            150
+          ],
+          [
+            100,
+            100
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            100
+          ],
+          [
+            100,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          100,
+          100
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            100,
+            100
+          ],
+          [
+            80,
+            80
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_10",
+      "input": [
+        [
+          100
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            100
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          -9999
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            -9999
+          ]
+        ]
+      }
+    },
+    {
+      "name": "testCalculatePoints_11",
+      "input": [
+        [
+          103,
+          103,
+          94
+        ],
+        [
+          90,
+          110,
+          -101
+        ],
+        [
+          100,
+          90,
+          110
+        ]
+      ],
+      "expected": {
+        "normalizedClaimed": [
+          [
+            103,
+            103,
+            94
+          ],
+          [
+            90,
+            110,
+            -101
+          ],
+          [
+            100,
+            90,
+            110
+          ]
+        ],
+        "normalizedPeerContributionRatio": [
+          [
+            -9999,
+            105,
+            96
+          ],
+          [
+            101,
+            -9999,
+            -101
+          ],
+          [
+            106,
+            95,
+            -9999
+          ]
+        ],
+        "normalizedAveragePerceived": [
+          103,
+          100,
+          96
+        ],
+        "denormalizedAveragePerceived": [
+          [
+            103,
+            100,
+            96
+          ],
+          [
+            101,
+            99,
+            94
+          ],
+          [
+            103,
+            100,
+            96
+          ]
+        ]
+      }
+    }
+  ],
+  "other_tests": [
+    {
+      "name": "testNormalizeValues",
+      "cases": [
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": []
+          },
+          "expected": [],
+          "name": "testNormalizeValues_1"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              100
+            ]
+          },
+          "expected": [
+            100
+          ],
+          "name": "testNormalizeValues_2"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              50
+            ]
+          },
+          "expected": [
+            100
+          ],
+          "name": "testNormalizeValues_3"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              50,
+              30,
+              20
+            ]
+          },
+          "expected": [
+            150,
+            90,
+            60
+          ],
+          "name": "testNormalizeValues_4"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              0,
+              0,
+              0
+            ]
+          },
+          "expected": [
+            0,
+            0,
+            0
+          ],
+          "name": "testNormalizeValues_5"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              0,
+              0,
+              100
+            ]
+          },
+          "expected": [
+            0,
+            0,
+            300
+          ],
+          "name": "testNormalizeValues_6"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              0,
+              -9999,
+              100
+            ]
+          },
+          "expected": [
+            0,
+            -9999,
+            200
+          ],
+          "name": "testNormalizeValues_7"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              110,
+              110,
+              110
+            ]
+          },
+          "expected": [
+            100,
+            100,
+            100
+          ],
+          "name": "testNormalizeValues_8"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              -9999,
+              -9999
+            ]
+          },
+          "expected": [
+            -9999,
+            -9999
+          ],
+          "name": "testNormalizeValues_9"
+        },
+        {
+          "function": "normalizeValues",
+          "input": {
+            "input": [
+              -101,
+              0,
+              -999
+            ]
+          },
+          "expected": [
+            -101,
+            0,
+            -999
+          ],
+          "name": "testNormalizeValues_10"
+        }
+      ]
+    },
+    {
+      "name": "testExcludeSelfRatings",
+      "cases": [
+        {
+          "function": "TeamEvalResult.removeSelfRatings",
+          "input": {
+            "input": [
+              [
+                1
+              ]
+            ]
+          },
+          "expected": [
+            [
+              -9999
+            ]
+          ],
+          "name": "testExcludeSelfRatings_1"
+        },
+        {
+          "function": "TeamEvalResult.removeSelfRatings",
+          "input": {
+            "input": [
+              [
+                11,
+                12,
+                13,
+                14
+              ],
+              [
+                21,
+                22,
+                23,
+                24
+              ],
+              [
+                31,
+                32,
+                33,
+                34
+              ],
+              [
+                41,
+                42,
+                43,
+                44
+              ]
+            ]
+          },
+          "expected": [
+            [
+              -9999,
+              12,
+              13,
+              14
+            ],
+            [
+              21,
+              -9999,
+              23,
+              24
+            ],
+            [
+              31,
+              32,
+              -9999,
+              34
+            ],
+            [
+              41,
+              42,
+              43,
+              -9999
+            ]
+          ],
+          "name": "testExcludeSelfRatings_2"
+        }
+      ]
+    },
+    {
+      "name": "testAverageColumns",
+      "cases": [
+        {
+          "function": "TeamEvalResult.averageColumns",
+          "input": {
+            "input": [
+              [
+                10,
+                20,
+                0,
+                -9999
+              ],
+              [
+                10,
+                -9999,
+                0,
+                -9999
+              ],
+              [
+                10,
+                20,
+                -9999,
+                -9999
+              ],
+              [
+                10,
+                20,
+                0,
+                -9999
+              ]
+            ]
+          },
+          "expected": [
+            10,
+            20,
+            0,
+            -9999
+          ],
+          "name": "testAverageColumns_1"
+        },
+        {
+          "function": "TeamEvalResult.averageColumns",
+          "input": {
+            "input": [
+              [
+                -9999,
+                -9999,
+                -9999,
+                -9999
+              ],
+              [
+                -9999,
+                -9999,
+                -9999,
+                -9999
+              ],
+              [
+                -9999,
+                -9999,
+                -9999,
+                -9999
+              ],
+              [
+                -9999,
+                -9999,
+                -9999,
+                -9999
+              ]
+            ]
+          },
+          "expected": [
+            -9999,
+            -9999,
+            -9999,
+            -9999
+          ],
+          "name": "testAverageColumns_2"
+        }
+      ]
+    },
+    {
+      "name": "testSum",
+      "cases": [
+        {
+          "function": "TeamEvalResult.sum",
+          "input": {
+            "input": [
+              1,
+              2,
+              3
+            ]
+          },
+          "expected": 6,
+          "name": "testSum_1"
+        },
+        {
+          "function": "TeamEvalResult.sum",
+          "input": {
+            "input": []
+          },
+          "expected": 0,
+          "name": "testSum_2"
+        },
+        {
+          "function": "TeamEvalResult.sum",
+          "input": {
+            "input": [
+              -9999,
+              2,
+              4
+            ]
+          },
+          "expected": 6,
+          "name": "testSum_3"
+        },
+        {
+          "function": "TeamEvalResult.sum",
+          "input": {
+            "input": [
+              -9999,
+              0,
+              0
+            ]
+          },
+          "expected": 0,
+          "name": "testSum_4"
+        },
+        {
+          "function": "TeamEvalResult.sum",
+          "input": {
+            "input": [
+              -9999,
+              -9999,
+              -9999
+            ]
+          },
+          "expected": -9999,
+          "name": "testSum_5"
+        }
+      ]
+    },
+    {
+      "name": "testCalculatePerceivedForStudent",
+      "cases": [
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [],
+            "normalizedAveragePerceived": []
+          },
+          "expected": [],
+          "name": "testCalculatePerceivedForStudent_1"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              10
+            ],
+            "normalizedAveragePerceived": [
+              5
+            ]
+          },
+          "expected": [
+            10
+          ],
+          "name": "testCalculatePerceivedForStudent_2"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              50,
+              100,
+              50
+            ],
+            "normalizedAveragePerceived": [
+              50,
+              25,
+              25
+            ]
+          },
+          "expected": [
+            100,
+            50,
+            50
+          ],
+          "name": "testCalculatePerceivedForStudent_3"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              -9999,
+              150,
+              50
+            ],
+            "normalizedAveragePerceived": [
+              50,
+              25,
+              25
+            ]
+          },
+          "expected": [
+            200,
+            100,
+            100
+          ],
+          "name": "testCalculatePerceivedForStudent_4"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              -9999,
+              -9999,
+              -9999
+            ],
+            "normalizedAveragePerceived": [
+              -9999,
+              -9999,
+              -9999
+            ]
+          },
+          "expected": [
+            -9999,
+            -9999,
+            -9999
+          ],
+          "name": "testCalculatePerceivedForStudent_5"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              -9999,
+              -9999,
+              -9999
+            ],
+            "normalizedAveragePerceived": [
+              100,
+              50,
+              50
+            ]
+          },
+          "expected": [
+            100,
+            50,
+            50
+          ],
+          "name": "testCalculatePerceivedForStudent_6"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              50,
+              150,
+              -9999
+            ],
+            "normalizedAveragePerceived": [
+              50,
+              50,
+              200
+            ]
+          },
+          "expected": [
+            100,
+            100,
+            400
+          ],
+          "name": "testCalculatePerceivedForStudent_7"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              0,
+              0,
+              -9999
+            ],
+            "normalizedAveragePerceived": [
+              0,
+              0,
+              -9999
+            ]
+          },
+          "expected": [
+            0,
+            0,
+            -9999
+          ],
+          "name": "testCalculatePerceivedForStudent_8"
+        },
+        {
+          "function": "TeamEvalResult.calculatePerceivedForStudent",
+          "input": {
+            "claimedSanitizedRow": [
+              25,
+              25,
+              75
+            ],
+            "normalizedAveragePerceived": [
+              -9999,
+              50,
+              150
+            ]
+          },
+          "expected": [
+            -9999,
+            25,
+            75
+          ],
+          "name": "testCalculatePerceivedForStudent_9"
+        }
+      ]
+    },
+    {
+      "name": "testIsSanitized",
+      "cases": [
+        {
+          "function": "TeamEvalResult.isSanitized",
+          "input": {
+            "array": []
+          },
+          "expected": true,
+          "name": "testIsSanitized_1"
+        },
+        {
+          "function": "TeamEvalResult.isSanitized",
+          "input": {
+            "array": [
+              1,
+              2,
+              -9999
+            ]
+          },
+          "expected": true,
+          "name": "testIsSanitized_2"
+        },
+        {
+          "function": "TeamEvalResult.isSanitized",
+          "input": {
+            "array": [
+              1,
+              -101,
+              2,
+              -9999
+            ]
+          },
+          "expected": true,
+          "name": "testIsSanitized_3"
+        },
+        {
+          "function": "TeamEvalResult.isSanitized",
+          "input": {
+            "array": [
+              -999,
+              2,
+              -1
+            ]
+          },
+          "expected": false,
+          "name": "testIsSanitized_4"
+        }
+      ]
+    },
+    {
+      "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter",
+      "cases": [
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [],
+            "valueArray": []
+          },
+          "expected": [],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_1"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1
+            ],
+            "valueArray": [
+              2.0
+            ]
+          },
+          "expected": [
+            2.0
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_2"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1,
+              2,
+              3
+            ],
+            "valueArray": [
+              1.0,
+              2.0,
+              3.0
+            ]
+          },
+          "expected": [
+            1.0,
+            2.0,
+            3.0
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_3"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1,
+              2,
+              -9999
+            ],
+            "valueArray": [
+              1.0,
+              2.0,
+              3.0
+            ]
+          },
+          "expected": [
+            1.0,
+            2.0,
+            -9999
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_4"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1,
+              2,
+              -999
+            ],
+            "valueArray": [
+              1.0,
+              2.0,
+              3.0
+            ]
+          },
+          "expected": [
+            1.0,
+            2.0,
+            -9999
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_5"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1,
+              2,
+              -101
+            ],
+            "valueArray": [
+              1.0,
+              2.0,
+              3.0
+            ]
+          },
+          "expected": [
+            1.0,
+            2.0,
+            -101
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_6"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1,
+              2,
+              -999,
+              4,
+              -101,
+              6,
+              -9999
+            ],
+            "valueArray": [
+              1.0,
+              2.0,
+              3.0,
+              4.0,
+              5.0,
+              6.0
+            ]
+          },
+          "expected": [
+            1.0,
+            2.0,
+            -9999,
+            4.0,
+            -101,
+            6.0,
+            -9999
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_7"
+        },
+        {
+          "function": "purgeValuesCorrespondingToSpecialValuesInFilter",
+          "input": {
+            "filterArray": [
+              1,
+              2,
+              -999,
+              4,
+              -101,
+              6,
+              -9999
+            ],
+            "valueArray": [
+              1.0,
+              2.0,
+              3.0,
+              -9999,
+              5.0,
+              6.0
+            ]
+          },
+          "expected": [
+            1.0,
+            2.0,
+            -9999,
+            -9999,
+            -101,
+            6.0,
+            -9999
+          ],
+          "name": "testPurgeValuesCorrespondingToSpecialValuesInFilter_8"
+        }
+      ]
+    }
+  ]
+}
