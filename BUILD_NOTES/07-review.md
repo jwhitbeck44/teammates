@@ -149,3 +149,33 @@ CSV (F)
 - `review.csv.test.ts`: with hostile names, teams, briefs, options, answers, "other" text and comments, no cell of the results CSV (all 10 types, with statistics), the links CSV or the non-submitter CSV starts like a formula. Roster import is a client-side parse followed by `enroll_students(p_course, ...)`, which is permission-checked and course-scoped (a hostile `course_id` key in a row is ignored).
 
 Not covered (needs a live project): PostgREST role switching, Vault and `pg_net` argument names, GoTrue email-change behaviour (F6), the recovery-link flow in a browser (F7), the real Resend send path and its timing (F5).
+
+---
+
+## Re-check of fixes (commit 32ad274)
+
+Suites run on the fixed tree: `bash supabase/tests/run.sh` 12 files, 695 assertions, all pass (before my new file); `cd web && npx vitest run` 17 files, 339 tests, all pass. New proof file: `supabase/tests/review_recheck.test.sql` (20 assertions; "FINDING R*" lines assert behaviour that still exists).
+
+| Finding | Verdict | Notes |
+|---|---|---|
+| F1 | OK | `jb_is_int` now requires `^-?[0-9]{1,15}$`; `100.0`/`100.5` rejected; `contrib_team_result` tolerates any stored junk (non-number counts as not submitted, clamped). Complete. |
+| F2 | OK | Column-level select without `access_token`, `select *` and `select access_token` give 42501 for managers too, links only via `instructor_student_links` (modify_students). Update, delete and named-column select still work (R5). No other web path reads the token. |
+| F3 | OK for its scope | `visibility_locked` blocks adding entries to any of the three lists once responses exist; narrowing, renumbering and re-adding checks behave as intended (R4); trigger order is correct (type/path/details change deletes responses first, then the lock sees none). Remove-then-re-add across calls is blocked. See R2/R3 for the gap it does not cover. |
+| F4 | NOT OK (new finding R1 below) | `others` is gone, but the leak can be re-opened by editing. |
+| F5 | OK, unverified live | Slot is claimed under an advisory lock before sending; limits per address and global are counted over all statuses. Residual: the 200/hour global cap lets an attacker who knows about 67 enrolled addresses block legitimate recovery for an hour (low); if `EdgeRuntime.waitUntil` is absent the function awaits and the timing difference returns (documented). Only enrolled addresses consume slots, so no extra DB write is a signal. |
+| F6 | OK (documented) | DEPLOY.md only; still unverifiable without GoTrue. |
+| F7 | OK in code, unverified | PKCE plus import-time subscription removes the race. Caveat: PKCE needs the browser that requested the reset (code verifier in local storage); opening the email link on another device fails. Same applies to sign-up confirmation links in Setup B (the address is still confirmed; the user signs in by password). Add one sentence to DEPLOY.md. |
+| F8 | OK | Recipient name hidden when recipient equals giver and giver name hidden; no new inference found (the self row shows as Anonymous, the other rows are unlinkable). |
+| F9 | OK | Wrapper checks 10000 / 2000, `canonical_answer` strips unknown keys; renamed `validate_answers_core` kept its ACL (execute lists asserted by the existing coverage test). |
+| F10 | OK | `session_course` null without `read`; RLS policies unaffected (all suites pass). |
+| F11 | OK | |
+| F12 | OK (partial, as stated) | CLI still `latest`. |
+
+### New findings
+
+- **R1, MEDIUM, proved: F4 is re-opened by resubmission.** `team_view_of_me.own` is scaled by the sum of the student's own claims over the teammates she rated. While results are visible and the session still accepts answers (published while open, `at_open`, or grace), Alice can resubmit with a subset of teammates and read how `own` changes. Team T1 from the F4 test: full submission gives own 75, rating only herself (100) and Bob (200) gives 113, from which `75*300/113 - 75 = 124 (125 within rounding)` is Bob's team average, so Carol's rating of Bob is again `2*125 - 100`. Test: "FINDING R1" (both assertions). Smallest fix: make `student_submit` (and `instructor_submit`) refuse once `session_is_published(s)` is true (raise `already_published`), or return `team_view_of_me` only after the student's deadline has passed. Either closes it because the probe needs live editing.
+- **R2, MEDIUM, proved: moving a student between teams after answers exist exposes earlier responses and, with name lists that include `giver_team_members`, giver names.** The fixer's open item is real. Visibility is evaluated against current team membership, and a manager `update students set team` or a roster re-import (the normal way to handle a late switch) triggers it. Test: Dave (T2) moved to T1 then sees `Alice>Anonymous:A>B` with Alice named. No student can cause it; it needs an instructor action, but it is silent. Contrib is not exposed (a moved student has no ratings, so his view stays empty).
+- **R3, MEDIUM, proved: team rename or relabel hands feedback addressed to a team to whoever now carries the label.** After T3 is renamed T9 and T4 is renamed T3, team T4's members read feedback written for the old T3. Same trigger, same fix.
+- **Smallest fix for R2 and R3 (the open item):** in `students_validate`, when `section` or `team` changes (UPDATE) and the student has given or received any response, or any team-keyed response exists for the old team key, raise `team_locked`; in `enroll_students` report it per row. If moves must stay possible, require deleting the affected sessions' responses first, or re-key `t:` recipient keys in the same transaction (rename only) and block moves of students with responses. Until then, document that moving or renaming teams after a session opened changes who can see what.
+
+Judgement on the open item: it can expose hidden givers (R2, when the giver-name list includes `giver_team_members`) and expose feedback to the wrong recipients (R3), but not CONTRIB individual ratings and not to students acting alone.
