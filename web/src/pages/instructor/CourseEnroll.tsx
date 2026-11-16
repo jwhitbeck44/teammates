@@ -17,6 +17,18 @@ export default function CourseEnroll() {
   const existing = students.data ?? [];
   const parsed = useMemo(() => (text.trim() === '' ? null : parseRosterCsv(text, { existing })), [text, existing]);
   const existingEmails = useMemo(() => new Set(existing.map((s) => s.email)), [existing]);
+  const existingByEmail = useMemo(() => new Map(existing.map((s) => [s.email, s])), [existing]);
+  // Existing students whose team or section the upload would change
+  const moves = useMemo(
+    () =>
+      (parsed?.valid ?? []).flatMap((r) => {
+        const old = existingByEmail.get(r.email);
+        return old && (old.team !== r.team || old.section !== r.section)
+          ? [{ row: r.row, name: r.name, from: `${old.section} / ${old.team}`, to: `${r.section} / ${r.team}` }]
+          : [];
+      }),
+    [parsed, existingByEmail],
+  );
   const errorsByRow = useMemo(() => {
     const m = new Map<number, string[]>();
     for (const e of parsed?.errors ?? []) m.set(e.row, [...(m.get(e.row) ?? []), `${e.field ? e.field + ': ' : ''}${e.message}`]);
@@ -103,13 +115,24 @@ export default function CourseEnroll() {
                           <td>{r.name}</td>
                           <td>{r.email}</td>
                           <td>{r.comments}</td>
-                          <td>{errs ? errs.join('; ') : existingEmails.has(r.email) ? 'Update' : 'New'}</td>
+                          <td>{errs ? errs.join('; ') : existingEmails.has(r.email) ? (moves.some((m) => m.row === r.row) ? 'Update (changes team or section)' : 'Update') : 'New'}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
+              {moves.length > 0 && (
+                <div className="ins-notice">
+                  <p>
+                    These students change section or team. Responses already given stay with the old team, and results by
+                    team in old sessions keep the old team.
+                  </p>
+                  <ul>
+                    {moves.map((m) => <li key={m.row}>Row {m.row}: {m.name}, {m.from} to {m.to}</li>)}
+                  </ul>
+                </div>
+              )}
               <ErrorBox error={action.error} />
               <div className="ins-actions">
                 <button type="button" className="ins-primary" onClick={() => void enroll()} disabled={action.busy || parsed.valid.length === 0}>

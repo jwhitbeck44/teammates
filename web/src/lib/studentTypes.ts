@@ -102,6 +102,8 @@ export interface ResultsQuestion {
   details: unknown;
   responses: ResultRow[];
   contrib?: { my_claim: ContribClaim; team_view_of_me: ContribTeamView };
+  /** Set instead of `contrib` while the session is still open for someone: the time the summary appears. */
+  contrib_available_after?: string;
 }
 
 export interface StudentResultsData {

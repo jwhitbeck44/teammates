@@ -54,3 +54,18 @@ The FINDING assertions of `review_findings.test.sql` are inverted and now start 
 - `docs/DEPLOY.md` step 7 says which key goes into the `service_role_key` secret.
 - Known limits, no code: the four anon `student_*` RPCs have no throttle (use Supabase's API rate limits; `student_get_results` is CPU heavy on big sessions); results can be published while a session is open; `send-reminder` has no per-instructor rate limit; team renames leave team-keyed responses in place; DEPLOY.md does not mention minimum password length or leaked-password protection.
 - Left open: `supabase/setup-cli` is still `version: latest` (pin it once you know which version works).
+
+## Re-check findings R1 to R3 (migration `20261116000011_recheck_fixes.sql`)
+
+### R1 CONTRIB probe by resubmitting (fixed)
+- Changed: `student_get_results` returns a CONTRIB question's numbers only when `now() >= greatest(closes_at + grace, latest deadline extension in the session)`. Before that the question comes back with `responses: []` and `contrib_available_after` (that timestamp) and no `my_claim` or `team_view_of_me`. Submission is not blocked. `StudentResults` says when the summary appears (course time zone). `contribAvailableAfter()` in `web/src/lib/time.ts` mirrors the rule (test in `time.test.ts`). Other question types are unchanged. Existing tests that read CONTRIB numbers now use a closed session.
+- Proof: `review_recheck.test.sql` "FIXED R1" (no numbers while open, the time equals closes_at + grace, the latest extension moves it, numbers appear after the close).
+
+### R2, R3 Team moves and renames (fixed, with one deviation to know about)
+- Changed: `responses` gets `giver_team_key`, `recipient_team_key` (null for instructors and `none`) and `giver_team_ids`, `recipient_team_ids` (the members of those teams at write time). A BEFORE INSERT trigger fills all four on every write path (student_submit, instructor_submit, instructor_moderate, direct inserts); existing rows are backfilled from the current teams. The checks for `giver_team_members`, `recipient_team_members` and team recipients (including "recipient is the viewer's team" and `recipient_is_me`) now test whether the viewer is in the stored member list. `viewer_qualifies` and `can_view_keys` have new signatures; `can_view` and `student_get_results` use them.
+- Deviation from the brief: comparing the viewer's current team KEY with the stored key would not fix R3, because a team recipient key is the label itself (rename T4 to T3 and the new T3 matches the old key). So the stored member ids decide, and the keys are stored for reporting. Consequence: a student who joins a team after a response was written does NOT see that team's earlier responses (giver-team lists or team-addressed). The effect the brief expected (late joiners see earlier team responses) therefore does not occur; the cost is that a late joiner also misses feedback addressed to the team. A giver who edits an answer re-stamps that row with the then-current teams.
+- UI: editing a student's team or section, when the student has responses, shows a notice; the enroll preview marks and lists existing students whose team or section would change.
+- Proof: `review_recheck.test.sql` "FIXED R2" (moved Dave sees nothing, stored teams checked) and "FIXED R3" (relabelled T4 does not read T3 feedback).
+
+### Also
+- `docs/DEPLOY.md`: reset links must be opened in the same browser (PKCE). `deploy-supabase.yml`: `supabase/setup-cli` pinned to 3.2.0.

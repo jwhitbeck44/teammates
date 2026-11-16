@@ -75,7 +75,7 @@ begin
   insert into t.q values (10, q, s);
   insert into public.responses (session_id, question_id, giver_key, recipient_key, answer)
   select s, q, t.sk('Alice'), t.sk('Bob'), '{"value":100}';
-  update public.sessions set published_at = now() where id = s;
+  update public.sessions set published_at = now(), closes_at = now() - interval '1 hour' where id = s;  -- closed for everyone, so CONTRIB numbers show
 end $$;
 
 -- ---------- preset 1: anonymous to recipient and giver's team, visible to instructors ----------

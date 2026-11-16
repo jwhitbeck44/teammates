@@ -158,6 +158,14 @@ export function studentDeadline(s: SessionTimes, extension?: Instant | null): nu
   return extension == null ? graceEnd(s) : Math.max(toMs(extension), graceEnd(s));
 }
 
+/**
+ * When the session is closed for everyone: greatest(closes_at + grace, latest extension). Mirror of the SQL in
+ * student_get_results(), which returns the CONTRIB summary only from this moment on. Epoch milliseconds.
+ */
+export function contribAvailableAfter(s: SessionTimes, extensions: readonly Instant[] = []): number {
+  return Math.max(graceEnd(s), ...extensions.map(toMs));
+}
+
 /** Session-wide status: not_open before opens_at, open until closes_at, grace until closes_at + grace, then closed. */
 export function sessionStatus(s: SessionTimes, now: Instant): SessionStatus {
   const t = toMs(now);

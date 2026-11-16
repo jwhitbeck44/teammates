@@ -3,6 +3,7 @@ import { studentGetResults } from '../../api/student';
 import type { ResultsQuestion } from '../../api/student';
 import { ErrorMessage, Loading, Page, useLoad } from '../../components/common';
 import { answerText } from '../../lib/answerText';
+import { formatInstant } from '../../lib/time';
 import { contribSummaryLines, groupResults, isInvalidToken, resultRowTitle } from '../../lib/studentView';
 import InvalidLink from './InvalidLink';
 
@@ -44,13 +45,13 @@ export default function StudentResults() {
       {back}
       {data.questions.length === 0 ? <p>There is nothing to show you for this session.</p> : null}
       {data.questions.map((q) => (
-        <ResultQuestion key={q.id} q={q} />
+        <ResultQuestion key={q.id} q={q} timeZone={data.course.time_zone} />
       ))}
     </Page>
   );
 }
 
-function ResultQuestion({ q }: { q: ResultsQuestion }) {
+function ResultQuestion({ q, timeZone }: { q: ResultsQuestion; timeZone: string }) {
   const groups = groupResults(q.responses);
   return (
     <section className="question" aria-labelledby={`rq-${q.id}`}>
@@ -58,6 +59,13 @@ function ResultQuestion({ q }: { q: ResultsQuestion }) {
         {q.number}. {q.brief}
       </h2>
       {q.description ? <p className="description">{q.description}</p> : null}
+
+      {q.contrib_available_after ? (
+        <p>
+          Your contribution summary will appear after the session closes for everyone, on or after{' '}
+          {formatInstant(q.contrib_available_after, timeZone)}.
+        </p>
+      ) : null}
 
       {q.contrib
         ? contribSummaryLines(q.contrib).map((block) => (

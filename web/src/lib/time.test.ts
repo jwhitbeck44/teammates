@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canStudentSubmit,
+  contribAvailableAfter,
   formatInstant,
   graceEnd,
   instantToLocalInputs,
@@ -143,5 +144,16 @@ describe('isPublished', () => {
   it('a manual publish wins over a future custom time', () => {
     const s = { ...base, results_visibility: 'custom' as const, results_visible_at: '2030-01-01T00:00:00Z', published_at: '2026-10-09T00:00:00Z' };
     expect(isPublished(s, '2026-10-10T00:00:00Z')).toBe(true);
+  });
+});
+
+describe('contribAvailableAfter', () => {
+  const s = { opens_at: '2026-10-01T12:00:00Z', closes_at: '2026-10-08T12:00:00Z', grace_minutes: 15, results_visibility: 'later' as const, results_visible_at: null, published_at: null };
+  it('is closes_at + grace without extensions', () => {
+    expect(contribAvailableAfter(s)).toBe(Date.parse('2026-10-08T12:15:00Z'));
+  });
+  it('is the latest extension when it is later, and ignores shorter ones', () => {
+    expect(contribAvailableAfter(s, ['2026-10-08T12:05:00Z', '2026-10-12T00:00:00Z'])).toBe(Date.parse('2026-10-12T00:00:00Z'));
+    expect(contribAvailableAfter(s, ['2026-10-08T12:05:00Z'])).toBe(Date.parse('2026-10-08T12:15:00Z'));
   });
 });

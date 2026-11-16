@@ -1,6 +1,6 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deleteStudent, listStudentLinks, listStudents, regenerateStudentToken, updateStudent } from '../../../api/instructor';
+import { deleteStudent, listStudentLinks, studentHasResponses, listStudents, regenerateStudentToken, updateStudent } from '../../../api/instructor';
 import { buildStudentLinksCsv, studentLink } from '../../../lib/csv';
 import { errorMessage } from '../../../lib/errors';
 import { sortRoster } from '../../../lib/recipients';
@@ -17,6 +17,13 @@ function EditRow({ student, onDone, onCancel }: { student: Student; onDone: () =
     comments: student.comments ?? '',
   });
   const action = useAction();
+  const [hasResponses, setHasResponses] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void studentHasResponses(student.id).then((b) => { if (active) setHasResponses(b); });
+    return () => { active = false; };
+  }, [student.id]);
+  const teamChanged = v.team.trim() !== student.team || v.section.trim() !== student.section;
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
 
   async function save() {
@@ -47,6 +54,13 @@ function EditRow({ student, onDone, onCancel }: { student: Student; onDone: () =
           <button type="button" className="ins-primary" onClick={() => void save()} disabled={action.busy}>Save</button>
           <button type="button" onClick={onCancel}>Cancel</button>
         </div>
+        {teamChanged && hasResponses && (
+          <p className="ins-notice">
+            This student already has responses. After the change they see only the earlier responses that were addressed to
+            or given by them, plus new ones for the new team. Earlier responses stay with the old team, and results by team
+            in old sessions keep the old team.
+          </p>
+        )}
         <ErrorBox error={action.error} />
       </td>
     </tr>

@@ -176,7 +176,7 @@ end $$;
 -- ===========================================================================================
 do $$
 declare
-  s uuid := t.mk_session('rv-f4', interval '-1 day', interval '1 day', 15, 'at_open');
+  s uuid := t.mk_session('rv-f4', interval '-2 days', interval '-1 hour', 15, 'at_open');
   q uuid := t.mk_q(s, 1, 'contrib', 'own_team_members_including_self', '{"isZeroSum":false,"isNotSureAllowed":false}',
                    'students', array['instructors','recipient','giver_team_members'], array['instructors'], array['instructors','recipient']);
 begin

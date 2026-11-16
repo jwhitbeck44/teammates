@@ -40,21 +40,33 @@ end $$;
 select t.as_anon();
 do $$
 declare s uuid := (select v from t.rr where k = 'r1s'); q uuid := (select v from t.rr where k = 'r1q');
-        own_full numeric; own_part numeric; r jsonb;
+        r jsonb; c jsonb;
 begin
-  r := public.student_get_results(t.tok('Alice'), s);
-  own_full := (r -> 'questions' -> 0 -> 'contrib' -> 'team_view_of_me' ->> 'own')::numeric;
-  -- Alice rates only herself (100) and Bob (200); no rating for Carol
+  -- session still open: the question comes back with the time and no numbers, however often Alice edits
   perform public.student_submit(t.tok('Alice'), s, q, jsonb_build_array(
     jsonb_build_object('recipient_key', t.sk('Alice'), 'answer', '{"value":100}'::jsonb),
     jsonb_build_object('recipient_key', t.sk('Bob'),   'answer', '{"value":200}'::jsonb)));
   r := public.student_get_results(t.tok('Alice'), s);
-  own_part := (r -> 'questions' -> 0 -> 'contrib' -> 'team_view_of_me' ->> 'own')::numeric;
-  raise notice 'own_full=% own_part=%', own_full, own_part;
-  perform t.is_true(own_full is distinct from own_part, 'FINDING R1: Alice''s team-view number changes with which teammates she rates (full=' || own_full || ', partial=' || own_part || ')');
-  -- avg_Alice = own_full (=75). own_part = avg_A * (100+200) / (avg_A + avg_B)  =>  avg_B = avg_A*300/own_part - avg_A
-  perform t.is_true(abs(own_full * 300 / own_part - own_full - 125) <= 2, 'FINDING R1: Bob''s team average (125) is recoverable, so Carol''s rating of Bob is again 2*125-100 (within rounding)');
+  c := r -> 'questions' -> 0;
+  perform t.is_true(c ->> 'type' = 'contrib' and c ? 'contrib_available_after' and not (c ? 'contrib'), 'FIXED R1: while the session is open, no contrib numbers, only contrib_available_after');
+  perform t.is_true((c ->> 'contrib_available_after')::timestamptz between now() + interval '1 day 14 minutes' and now() + interval '1 day 16 minutes',
+    'FIXED R1: the time is closes_at + grace');
+  perform t.is_true(c::text !~ 'team_view_of_me|my_claim', 'FIXED R1: nothing of the summary is in the payload');
 end $$;
+select t.reset();
+-- an extension later than closes_at + grace moves the time
+insert into public.deadline_extensions (session_id, student_id, closes_at)
+  values ((select v from t.rr where k = 'r1s'), t.id('Dave'), now() + interval '3 days');
+select t.as_anon();
+select t.is_true(((public.student_get_results(t.tok('Alice'), (select v from t.rr where k = 'r1s')) -> 'questions' -> 0 ->> 'contrib_available_after')::timestamptz
+                  > now() + interval '2 days'), 'FIXED R1: the latest extension in the session moves the time');
+select t.reset();
+-- once everything is closed the summary is returned
+update public.sessions set opens_at = now() - interval '3 days', closes_at = now() - interval '2 hours' where id = (select v from t.rr where k = 'r1s');
+delete from public.deadline_extensions where session_id = (select v from t.rr where k = 'r1s');
+select t.as_anon();
+select t.is_true((public.student_get_results(t.tok('Alice'), (select v from t.rr where k = 'r1s')) -> 'questions' -> 0 -> 'contrib' -> 'team_view_of_me' ->> 'own') is not null,
+  'R1: after the close the summary is there');
 select t.reset();
 
 -- R2. Open item: moving a student between teams after answers exist changes who sees which giver names.
@@ -71,7 +83,9 @@ select t.eq(t.rr_view('Dave', (select v from t.rr where k = 'r2s'), 1), 'ABSENT'
 select t.as_user(t.id('mgr'), 'mgr@a.edu');
 select t.eq(t.affected(format('update public.students set team = ''T1'' where id = %L', t.id('Dave')))::text, '1', 'R2: manager moves Dave into T1 (also what a CSV re-import does)');
 select t.reset();
-select t.eq(t.rr_view('Dave', (select v from t.rr where k = 'r2s'), 1), 'Alice>Anonymous:A>B', 'FINDING R2: Dave now sees Alice''s earlier response with her name (giver-name list is giver_team_members)');
+select t.eq(t.rr_view('Dave', (select v from t.rr where k = 'r2s'), 1), 'ABSENT', 'FIXED R2: Dave, moved into T1 later, does not see the earlier response');
+select t.is_true((select giver_team_key = 't:S1|T1' and recipient_team_key = 't:S1|T1' and giver_team_ids @> array[t.id('Alice')] and not giver_team_ids @> array[t.id('Dave')]
+                  from public.responses where session_id = (select v from t.rr where k = 'r2s')), 'R2: the teams are stored with the response');
 
 -- R3. Team rename: feedback addressed to team T1 follows the label, not the group of people.
 do $$
@@ -88,7 +102,8 @@ select t.as_user(t.id('mgr'), 'mgr@a.edu');
 select t.lives($$update public.students set team = 'T9' where name = 'Frank'$$, 'R3: rename T3 to T9');
 select t.lives($$update public.students set team = 'T3' where team = 'T4' and section = 'S2'$$, 'R3: rename T4 to T3');
 select t.reset();
-select t.eq(t.rr_view('Gina', (select v from t.rr where k = 'r3s'), 1), 'Anonymous>T3:for T3', 'FINDING R3: team T4 (now labelled T3) reads feedback written for the old T3');
+select t.eq(t.rr_view('Gina', (select v from t.rr where k = 'r3s'), 1), 'ABSENT', 'FIXED R3: team T4 (now labelled T3) does not read feedback written for the old T3');
+select t.eq(t.rr_view('Frank', (select v from t.rr where k = 'r3s'), 1), 'Frank>T3:for T3', 'R3: the giver (Frank, now in T9) still sees his own row');
 
 -- R4. visibility_locked: removing is allowed, adding is not; renumbering is allowed
 do $$

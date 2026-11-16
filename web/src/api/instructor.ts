@@ -203,6 +203,15 @@ export async function updateStudent(id: Uuid, patch: StudentInputRow): Promise<v
   if (rows.length === 0) throw new ApiError('forbidden');
 }
 
+/** True when the student has given or received any response (or when this cannot be checked). */
+export async function studentHasResponses(id: Uuid): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('responses')
+    .select('id', { count: 'exact', head: true })
+    .or(`giver_key.eq.s:${id},recipient_key.eq.s:${id}`);
+  return error ? true : (count ?? 0) > 0;
+}
+
 export async function deleteStudent(id: Uuid): Promise<void> {
   const rows = await run<{ id: Uuid }[]>(supabase.from('students').delete().eq('id', id).select('id'));
   if (rows.length === 0) throw new ApiError('forbidden');
