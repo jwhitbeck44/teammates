@@ -1,0 +1,63 @@
+name: Deploy Supabase (database and email functions)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/deploy-supabase.yml"
+
+concurrency:
+  group: supabase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      # Defaults to the GitHub Pages address of this repository; set the APP_URL secret to override (custom domain).
+      APP_URL: ${{ secrets.APP_URL || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check required secrets
+        run: |
+          missing=0
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            if [ -z "${!v}" ]; then echo "::error::Repository secret $v is not set"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Push database migrations
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Deploy Edge Functions
+        run: |
+          for fn in email-dispatch send-reminder recover-links; do
+            supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" --use-api
+          done
+
+      - name: Set function secrets (only those present)
+        run: |
+          args=()
+          [ -n "$APP_URL" ] && args+=("APP_URL=$APP_URL")
+          [ -n "$EMAIL_FROM" ] && args+=("EMAIL_FROM=$EMAIL_FROM")
+          [ -n "$RESEND_API_KEY" ] && args+=("RESEND_API_KEY=$RESEND_API_KEY")
+          if [ "${#args[@]}" -gt 0 ]; then
+            supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" "${args[@]}"
+          else
+            echo "No APP_URL, EMAIL_FROM or RESEND_API_KEY secrets set; skipping."
+          fi
