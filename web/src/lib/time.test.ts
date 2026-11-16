@@ -87,6 +87,9 @@ describe('session status and deadlines (ARCHITECTURE.md section 5)', () => {
     expect(studentDeadline(s)).toBe(Date.parse('2026-10-08T12:15:00Z'));
     expect(studentDeadline(s, null)).toBe(Date.parse('2026-10-08T12:15:00Z'));
     expect(studentDeadline(s, '2026-10-10T12:00:00Z')).toBe(Date.parse('2026-10-10T12:00:00Z'));
+    // An extension shorter than the grace period does not cut the grace period short (TEAMMATES rule).
+    expect(studentDeadline(s, '2026-10-08T12:05:00Z')).toBe(Date.parse('2026-10-08T12:15:00Z'));
+    expect(studentStatus(s, '2026-10-08T12:10:00Z', '2026-10-08T12:05:00Z')).toBe('grace');
   });
   it('a student may submit when opens_at <= now < deadline', () => {
     expect(canStudentSubmit(s, '2026-10-01T11:59:59Z')).toBe(false);

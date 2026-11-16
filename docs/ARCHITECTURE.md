@@ -154,7 +154,7 @@ Keys used in `responses`:
 Derived values (SQL functions, mirrored in `web/src/lib`):
 - `session_is_published(s)`: `published_at is not null` or (`results_visibility = 'at_open'` and `now() >= opens_at`) or (`results_visibility = 'custom'` and `now() >= results_visible_at`).
 - Unpublish sets `published_at = null`, `results_visibility = 'later'`, `published_email_sent_at = null`.
-- `student_deadline(session, student)`: the extension's `closes_at` if one exists, else `closes_at + grace_minutes`. A student may submit when `opens_at <= now() < student_deadline`. Extensions must be later than `closes_at`.
+- `student_deadline(session, student)`: `greatest(extension.closes_at, closes_at + grace_minutes)` if an extension exists, else `closes_at + grace_minutes` (the TEAMMATES rule; changed on 2026-11-16 so an extension shorter than the grace period does not cut the grace period short). A student may submit when `opens_at <= now() < student_deadline`. Extensions must be later than `closes_at`.
 - A session is visible to students from `opens_at` on (no separate "visible from" setting, as in TEAMMATES).
 
 ## 6. Questions

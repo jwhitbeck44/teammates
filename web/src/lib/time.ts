@@ -154,7 +154,8 @@ export function graceEnd(s: SessionTimes): number {
  * `closes_at + grace_minutes` (ARCHITECTURE.md section 5). Returns epoch milliseconds.
  */
 export function studentDeadline(s: SessionTimes, extension?: Instant | null): number {
-  return extension == null ? graceEnd(s) : toMs(extension);
+  // TEAMMATES rule: the later of the extension and the session close plus grace.
+  return extension == null ? graceEnd(s) : Math.max(toMs(extension), graceEnd(s));
 }
 
 /** Session-wide status: not_open before opens_at, open until closes_at, grace until closes_at + grace, then closed. */
@@ -168,14 +169,15 @@ export function sessionStatus(s: SessionTimes, now: Instant): SessionStatus {
 
 /**
  * Status for one student. Without an extension it equals sessionStatus. With an extension the
- * student is 'open' until the extension's closes_at and then 'closed' (no grace on top,
- * ARCHITECTURE.md section 5 gives the extension as the whole deadline).
+ * student is 'open' until the extension's closes_at, then follows the session's grace period if
+ * that ends later (deadline = max(extension, closes_at + grace), as in TEAMMATES).
  */
 export function studentStatus(s: SessionTimes, now: Instant, extension?: Instant | null): SessionStatus {
   if (extension == null) return sessionStatus(s, now);
   const t = toMs(now);
   if (t < toMs(s.opens_at)) return 'not_open';
-  return t < toMs(extension) ? 'open' : 'closed';
+  if (t < toMs(extension)) return 'open';
+  return t < graceEnd(s) ? 'grace' : 'closed';
 }
 
 /** A student may submit when opens_at <= now < student deadline. */
