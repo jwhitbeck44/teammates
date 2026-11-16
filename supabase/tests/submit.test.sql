@@ -26,6 +26,7 @@ select t.eq((select count(*)::text from jsonb_array_elements(public.student_get_
 select t.eq((select jsonb_array_length(q -> 'answers')::text from jsonb_array_elements(public.student_get_session(t.tok('Alice'), (select v from t.s where k = 's')) -> 'questions') q where q ->> 'number' = '1'), '2', 'get_session returns Alice''s two answers');
 select t.eq((select jsonb_array_length(q -> 'recipients')::text from jsonb_array_elements(public.student_get_session(t.tok('Alice'), (select v from t.s where k = 's')) -> 'questions') q where q ->> 'number' = '1'), '2', 'get_session returns resolved recipients');
 select t.eq((select string_agg(q ->> 'number', ',') from jsonb_array_elements(public.student_get_session(t.tok('Alice'), (select v from t.s where k = 's')) -> 'questions') q), '1,3', 'get_session lists only student-giver questions');
+select t.is_true((select bool_and(q ? 'show_responses_to' and q ? 'show_giver_name_to' and q ? 'show_recipient_name_to') from jsonb_array_elements(public.student_get_session(t.tok('Alice'), (select v from t.s where k = 's')) -> 'questions') q), 'get_session includes the three visibility lists');
 select t.eq((t.sub('Alice', 'q1', jsonb_build_array(t.row(t.sk('Bob'), '{"text":"b2"}'))) ->> 'saved'), '1', 'resubmitting replaces the giver''s rows');
 select t.reset();
 select t.eq((select count(*)::text from public.responses where question_id = (select v from t.s where k = 'q1')), '1', 'only one row remains after replace');
