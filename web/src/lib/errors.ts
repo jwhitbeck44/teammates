@@ -12,6 +12,10 @@ export const ERROR_MESSAGES = {
   forbidden: 'You do not have permission to do that.',
   not_found: 'Not found.',
   invalid_input: 'Some of the input is not valid.',
+  last_coowner: 'A course must keep at least one co-owner.',
+  invalid_time_zone: 'That time zone is not recognised.',
+  name_taken: 'That name is already used in this course.',
+  already_published: 'Results are already published.',
 
   // Answers
   invalid_answer: 'The answer is not in the expected format.',
