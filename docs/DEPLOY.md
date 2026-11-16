@@ -116,11 +116,10 @@ In Supabase open **Authentication** (check in the dashboard for the exact page n
 2. **URL Configuration**:
    - **Site URL**: your Pages address, for example `https://<your-user>.github.io/<repo-name>/`.
    - **Redirect URLs**: add the same address, and the same address followed by `**` (for example `https://<your-user>.github.io/<repo-name>/**`).
-3. **Confirm email** (under the Email provider settings, check in the dashboard). Choose one:
-   - **On** (Supabase default): a new instructor must click a link in an email before they can sign in. Safer, but Supabase's built-in sender is limited to a few emails per hour and only to people who belong to your Supabase organization on some plans, so sign-ups can stall. If you turn Resend on (step 10) you can also set Resend as the custom SMTP sender in Supabase (check in the dashboard) to lift that limit.
-   - **Off**: instructors can sign in right after signing up, no email needed. This is the simplest start. It is acceptable here because the allowlist (step 9) decides who may create courses, so a stranger who signs up gets an account that can do nothing.
-   - Recommendation: start with **Off**, and switch to **On** once custom SMTP works.
-4. Optional: turn off **Allow new users to sign up** after you and your co-instructors have accounts. Invited co-instructors need to sign up first, so only do this once everyone has an account.
+3. **Who can create an account.** The allowlist (step 9) and course invites work by email address. So the app must know that the person signing in really owns that address. Pick one of these two setups.
+   - **Setup A, no email needed (recommended to start):** turn **Allow new users to sign up** off, and turn **Confirm email** off. Then create each instructor's account yourself: **Authentication**, **Users**, **Add user**, **Create new user**, enter their email and a temporary password, and tick **Auto confirm user** (check in the dashboard for these names). Send them the password yourself and ask them to change it with "Forgot password" once email works, or just tell them to keep it private. Nobody else can create an account.
+   - **Setup B, self sign-up:** leave **Allow new users to sign up** on and turn **Confirm email** on. Each new instructor must click a link in an email before signing in, which proves they own the address. This needs working email: Supabase's built-in sender is limited to a few emails per hour and, on some plans, only to members of your Supabase organization. Set Resend (step 10) as the custom SMTP sender in Supabase (check in the dashboard) before relying on this.
+   - Do not combine sign-up **on** with Confirm email **off**. In that combination anyone who knows an allowlisted or invited instructor's email address can create an account under that address and get that instructor's access.
 
 ## 9. Add the first instructor to the allowlist
 
@@ -132,8 +131,8 @@ Only emails in `instructor_allowlist` can create courses. Add yourself (use the 
 insert into public.instructor_allowlist (email) values ('you@university.edu');
 ```
 
-2. Run it. To add more people later, run the same statement with their address, or invite them to a course from inside the app (an invited person can sign in without being on the allowlist).
-3. Open your Pages address, create an account with that email, and sign in.
+2. Run it. To add more people later, run the same statement with their address, or invite them to a course from inside the app (an invited person can sign in without being on the allowlist). Under Setup A in step 8, also create their account under **Authentication**, **Users**.
+3. Under Setup A, create your own account under **Authentication**, **Users** with that email. Under Setup B, open your Pages address and sign up with that email. Then sign in.
 
 ## 10. Optional: email with Resend
 
@@ -170,7 +169,7 @@ Section A,Team 2,Fay Test,you+fay@example.com,
 Checklist (tick each):
 
 - [ ] Open the Pages address. The landing page loads with no error.
-- [ ] Sign up with your allowlisted email, sign in (confirm the email first if Confirm email is on).
+- [ ] Sign in with your allowlisted email (account created per step 8 Setup A or B).
 - [ ] Create a course (code `TEST101`, time zone of your choice). It appears in your list.
 - [ ] Enroll the roster above. 6 students, 2 teams are shown.
 - [ ] Download the student links CSV. It has 6 rows with distinct links.
@@ -223,7 +222,7 @@ select status, return_message, start_time from cron.job_run_details order by sta
 | Site loads but is blank or says it cannot reach the server | The two `VITE_` variables are missing or wrong. Fix them in step 3 and rerun the Pages workflow. |
 | Site shows 404 on the Pages address | Wait a minute after the first deploy; check Settings, Pages shows the site as published. |
 | `.github` folder missing after browser upload | Create the files by hand: in the repository click **Add file**, **Create new file**, type `.github/workflows/deploy-pages.yml` as the name (typing the slashes makes folders), paste the contents, commit. Repeat for `deploy-supabase.yml`. |
-| Sign-up works but sign-in says "Email not confirmed" | Confirm email is on (step 8): click the link in the email, or turn it off. |
+| Sign-in says "Email not confirmed" | Setup B: click the link in the confirmation email. Setup A: the account was created without **Auto confirm user**; delete it and create it again with that box ticked. |
 | Instructor cannot create a course | Their email is not in `instructor_allowlist`, or differs in case or spelling (step 9). |
 | Sign-in link or email goes to the wrong address, or says redirect not allowed | Site URL and Redirect URLs (step 8) do not match your Pages address. |
 | Students say a link does not work | The link was regenerated, or was cut in two by their mail program. Send a fresh link, or have them use "email me my links". |
