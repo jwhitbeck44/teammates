@@ -111,4 +111,6 @@ This app does not have these TEAMMATES features:
 - A visibility preset that hides giver names from instructors too. Instructors always see names.
 - Student profiles.
 - Students see their team's view of their own contribution (CONTRIB question) but not of their teammates', so that no one can work out a teammate's rating in a small team.
+- Students see that contribution summary only after the session has closed for everyone, including students with extensions. Before then their results page says when it will appear.
+- Moving a student to another team, or renaming a team, does not move old answers with them. Answers stay with the team members at the time they were written, so a student who joins a team later does not see that team's earlier answers.
 - Sign-in with Google, unless someone turns it on later.
