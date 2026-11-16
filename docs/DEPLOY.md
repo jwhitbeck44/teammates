@@ -147,7 +147,7 @@ To send email from the app:
 3. **API Keys**, then **Create API Key**, permission "Sending access". Copy the key (starts with `re_`).
 4. In GitHub add secrets: `RESEND_API_KEY` (the key) and `EMAIL_FROM`, for example `Peer Feedback <feedback@yourdomain.edu>`. The address must be on the verified domain.
 5. Run the **Deploy Supabase** workflow again (step 5). It stores the values in Supabase.
-6. Test: in the app preview or send yourself a reminder (smoke test below), then look at `email_log` (see Troubleshooting for the query).
+6. Test: send yourself a reminder from the instructor page (smoke test below), then look at `email_log` (see Troubleshooting for the query).
 
 What the emails are: session opened, closing soon (24 hours before the student's own deadline, only for students who have not answered everything), results published, manual reminders from the instructor, and "email me my links" from the student landing page. The timer runs every 15 minutes.
 
