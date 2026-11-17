@@ -40,7 +40,8 @@ jobs:
         working-directory: web
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          # The publishable key (sb_publishable_...). VITE_SUPABASE_ANON_KEY is the older variable name, still read.
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_ANON_KEY }}
           # The site lives at https://<user>.github.io/<repo-name>/
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build

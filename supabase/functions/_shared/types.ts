@@ -33,6 +33,15 @@ export interface StudentRow {
   name: string;
   email: string;
   access_token: string;
+  /** Needed by hasRecipients (email-dispatch selects them); other callers may leave them out. */
+  section?: string;
+  team?: string;
+}
+
+/** course_instructors columns that decide whether a question to instructors has recipients. */
+export interface InstructorPresenceRow {
+  course_id: string;
+  is_displayed_to_students: boolean;
 }
 
 export interface ExtensionRow {
@@ -45,6 +54,8 @@ export interface QuestionRow {
   id: string;
   session_id: string;
   giver_type: "students" | "instructors";
+  /** Needed by hasRecipients; when absent the question counts as answerable for every student. */
+  recipient_type?: string;
 }
 
 export interface ResponseKeyRow {
@@ -72,6 +83,8 @@ export type EmailKind =
   | "recovery";
 
 export interface PlannedEmail {
+  /** Automatic emails only: 1 for the first try, 2 and 3 for retries after a failed send. */
+  attempt?: number;
   kind: EmailKind;
   sessionId: string | null;
   studentId: string | null;

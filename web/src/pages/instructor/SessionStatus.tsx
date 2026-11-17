@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import {
   getCourse,
   getSession,
+  listEmailLog,
   listExtensions,
+  listInstructors,
   listQuestions,
   listResponseMeta,
   listStudents,
@@ -16,13 +18,21 @@ import {
 import { buildNonSubmitterCsv } from '../../lib/csv';
 import { errorMessage } from '../../lib/errors';
 import { sortRoster } from '../../lib/recipients';
-import { nonSubmitters, submissionStatus } from '../../lib/results';
+import { nonSubmitters, questionProgress, studentsWithUnanswered, submissionStatus } from '../../lib/results';
+import { EMAIL_STATUSES, summarizeEmailLog } from '../../lib/emailLog';
 import { formatInstant, isPublished, sessionStatus, studentDeadline, validateExtension } from '../../lib/time';
 import { downloadText, ErrorBox, Loading, Page, safeFilename, useAction, useCoursePerms, useLoad } from '../../components/instructor/ui';
 import { LocalDateTime } from '../../components/instructor/LocalDateTime';
 import InstructorAnswers from '../../components/instructor/InstructorAnswers';
 
 const STATUS_LABEL = { not_open: 'Not open yet', open: 'Open', grace: 'Grace period', closed: 'Closed' } as const;
+const EMAIL_STATUS_LABEL = { sent: 'Sent', failed: 'Failed', skipped: 'Skipped', pending: 'Pending' } as const;
+
+function progressText(p: { answerable: number; answered: number } | undefined): string {
+  if (!p) return '';
+  if (p.answerable === 0) return 'No questions';
+  return `${p.answered} of ${p.answerable}`;
+}
 
 export default function SessionStatus() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -33,6 +43,8 @@ export default function SessionStatus() {
   const questions = useLoad(() => listQuestions(sessionId!), [sessionId]);
   const responses = useLoad(() => listResponseMeta(sessionId!), [sessionId]);
   const extensions = useLoad(() => listExtensions(sessionId!), [sessionId]);
+  const instructors = useLoad(() => (courseId ? listInstructors(courseId) : Promise.resolve([])), [courseId]);
+  const emailLog = useLoad(() => listEmailLog(sessionId!), [sessionId]);
   const perms = useCoursePerms(courseId);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -51,11 +63,21 @@ export default function SessionStatus() {
   const now = Date.now();
   const roster = useMemo(() => sortRoster(students.data ?? []), [students.data]);
   const status = useMemo(() => submissionStatus(roster, responses.data ?? []), [roster, responses.data]);
+  // Questions answered out of questions each student can answer (every question is optional: this informs).
+  const progress = useMemo(
+    () => questionProgress(questions.data ?? [], roster, instructors.data ?? [], responses.data ?? []),
+    [questions.data, roster, instructors.data, responses.data],
+  );
+  const emails = useMemo(() => summarizeEmailLog(emailLog.data ?? []), [emailLog.data]);
   const extByStudent = useMemo(() => new Map((extensions.data ?? []).map((e) => [e.student_id, e.closes_at])), [extensions.data]);
   const canModify = perms.can('modify_sessions');
   const canSubmit = perms.can('submit');
   const hasInstructorQuestions = (questions.data ?? []).some((q) => q.giver_type === 'instructors');
   const submittedCount = roster.filter((r) => status.get(r.id)?.submitted).length;
+  const completeCount = roster.filter((r) => {
+    const p = progress.get(r.id);
+    return p !== undefined && p.answerable > 0 && p.unanswered.length === 0;
+  }).length;
   const published = s ? isPublished(s, now) : false;
   const sessionState = s ? sessionStatus(s, now) : 'closed';
   const visible = roster.filter((r) => !onlyMissing || !status.get(r.id)?.submitted);
@@ -65,6 +87,7 @@ export default function SessionStatus() {
     responses.reload();
     extensions.reload();
     students.reload();
+    emailLog.reload();
   }
 
   function toggle(id: string) {
@@ -76,6 +99,10 @@ export default function SessionStatus() {
 
   function selectNonSubmitters() {
     setSelected(new Set(roster.filter((r) => !status.get(r.id)?.submitted).map((r) => r.id)));
+  }
+
+  function selectWithUnanswered() {
+    setSelected(new Set(studentsWithUnanswered(roster, progress).map((r) => r.id)));
   }
 
   async function doPublish(on: boolean) {
@@ -139,7 +166,7 @@ export default function SessionStatus() {
     { to: c ? `/courses/${c.id}` : undefined, label: c?.code ?? '...' },
     { label: s?.name ?? '...' },
   ];
-  const loadError = session.error ?? course.error ?? students.error ?? responses.error ?? extensions.error ?? questions.error;
+  const loadError = session.error ?? course.error ?? students.error ?? responses.error ?? extensions.error ?? questions.error ?? instructors.error;
 
   return (
     <Page title={s ? `Status: ${s.name}` : 'Session status'} crumbs={crumbs} wide>
@@ -188,12 +215,13 @@ export default function SessionStatus() {
             </div>
           )}
 
-          <h2>Students ({submittedCount} of {roster.length} have responded)</h2>
+          <h2>Students ({submittedCount} of {roster.length} have responded, {completeCount} have answered every question)</h2>
           {canModify && (
             <div className="ins-card">
               <div className="ins-actions">
                 <strong>{selected.size} selected</strong>
                 <button type="button" onClick={selectNonSubmitters}>Select non-submitters</button>
+                <button type="button" onClick={selectWithUnanswered}>Select students with unanswered questions</button>
                 <button type="button" onClick={() => setSelected(new Set(roster.map((r) => r.id)))}>Select all</button>
                 <button type="button" onClick={() => setSelected(new Set())}>Clear</button>
               </div>
@@ -223,7 +251,7 @@ export default function SessionStatus() {
                   {canModify && <th></th>}
                   <th>Name</th>
                   <th>Email</th>
-                  <th>Status</th>
+                  <th>Questions answered</th>
                   <th className="ins-num">Responses</th>
                   <th>Last updated</th>
                   <th>Deadline</th>
@@ -243,7 +271,7 @@ export default function SessionStatus() {
                         {canModify && <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.name}`} /></td>}
                         <td>{r.name}</td>
                         <td>{r.email}</td>
-                        <td>{st?.submitted ? 'Submitted' : 'Not submitted'}</td>
+                        <td>{progressText(progress.get(r.id))}</td>
                         <td className="ins-num">{st?.count ?? 0}</td>
                         <td>{st?.last_updated ? formatInstant(st.last_updated, tz) : ''}</td>
                         <td>
@@ -262,9 +290,66 @@ export default function SessionStatus() {
             </table>
           </div>
           <p className="ins-hint">
-            Responses counts the rows a student has saved. Times are in {tz}. Moderate lets you edit a student's answers,
-            even after the deadline.
+            Questions answered counts the questions with at least one saved answer, out of the questions the student can
+            answer. A question with nobody for the student to answer about (for example a teammates question in a team of
+            one) is not counted. Every question is optional, so an unanswered question is not an error. "Select
+            non-submitters" selects students with no saved answer at all. Responses counts the rows a student has saved.
+            Times are in {tz}. Moderate lets you edit a student's answers, even after the deadline.
           </p>
+
+          {canModify && (
+            <div className="ins-card">
+              <h3>Emails for this session</h3>
+              <ErrorBox error={emailLog.error} />
+              {emails.total === 0 ? (
+                <p className="ins-muted ins-small">No emails yet.</p>
+              ) : (
+                <>
+                  <table className="ins-stats">
+                    <thead>
+                      <tr><th>Email</th>{EMAIL_STATUSES.map((st) => <th key={st} className="ins-num">{EMAIL_STATUS_LABEL[st]}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {emails.byKind.map((k) => (
+                        <tr key={k.kind}>
+                          <td>{k.label}</td>
+                          {EMAIL_STATUSES.map((st) => <td key={st} className="ins-num">{k.counts[st]}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {emails.failures.length > 0 && (
+                    <>
+                      <h4>Failed sends</h4>
+                      <div className="ins-scroll">
+                        <table>
+                          <thead>
+                            <tr><th>When</th><th>Email</th><th>Address</th><th>Error</th><th>Later sent</th></tr>
+                          </thead>
+                          <tbody>
+                            {emails.failures.map((f, i) => (
+                              <tr key={i}>
+                                <td>{formatInstant(f.created_at, tz)}</td>
+                                <td>{f.label}</td>
+                                <td>{f.to_email}</td>
+                                <td>{f.error}</td>
+                                <td>{f.resolved ? 'Yes' : 'No'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+              <p className="ins-hint">
+                Each row of the log is one try. The automatic emails (session opened, closing soon, results published) are
+                tried again on the next runs of the 15 minute timer after a failure, up to three tries per student.
+                Skipped means email is not set up on this site, so nothing was sent and nothing is tried again.
+              </p>
+            </div>
+          )}
         </>
       )}
     </Page>

@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { studentPortal } from '../../api/student';
 import type { PortalSession } from '../../api/student';
 import { ErrorMessage, Loading, Page, TimeText, useLoad, useNow } from '../../components/common';
-import { STATUS_LABELS, effectiveStatus, isInvalidToken, timeLeftText } from '../../lib/studentView';
+import { STATUS_LABELS, answeredText, effectiveStatus, isInvalidToken, printedDeadline, timeLeftText } from '../../lib/studentView';
 import InvalidLink from './InvalidLink';
 
 export default function StudentPortal() {
@@ -46,20 +46,25 @@ export default function StudentPortal() {
 }
 
 function SessionCard({ s, token, tz, now }: { s: PortalSession; token: string; tz: string; now: number }) {
-  const status = effectiveStatus(s.status, s.deadline, now);
+  // The real cutoff (s.deadline, close time plus grace) decides open, late period and closed. The page prints the
+  // close time or the student's extension (s.shown_deadline), and the countdown runs to that time.
+  const status = effectiveStatus(s.status, s.deadline, now, s.shown_deadline);
   const canSubmit = status === 'open' || status === 'grace';
-  const left = canSubmit ? timeLeftText(s.deadline, now) : '';
+  const shown = printedDeadline(s);
+  const left = canSubmit ? timeLeftText(shown, now) : '';
+  const progress = answeredText(s.questions_answered, s.questions_answerable);
+  const allDone = progress !== null ? s.questions_answerable! > 0 && s.questions_answered === s.questions_answerable : s.submitted;
   return (
     <li className="card">
       <h2>{s.name}</h2>
       <p>
         <span className={`badge badge-${status}`}>{STATUS_LABELS[status]}</span>{' '}
-        <span className={`badge ${s.submitted ? 'badge-done' : 'badge-todo'}`}>
-          {s.submitted ? 'Submitted' : 'Not submitted'}
+        <span className={`badge ${allDone ? 'badge-done' : 'badge-todo'}`}>
+          {progress ?? (s.submitted ? 'Submitted' : 'Not submitted')}
         </span>
       </p>
       <p>
-        Deadline: <TimeText value={s.deadline} timeZone={tz} />
+        Deadline: <TimeText value={shown} timeZone={tz} />
         {left ? ` (${left})` : ''}
       </p>
       <div className="actions">

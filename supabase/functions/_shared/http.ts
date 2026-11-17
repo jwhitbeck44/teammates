@@ -47,3 +47,17 @@ export function bearer(req: Request): string | null {
   const m = /^Bearer\s+(.+)$/i.exec(h);
   return m ? m[1].trim() : null;
 }
+
+/** Header the 15 minute timer sends (migration 20261117000012). Not Authorization: the platform may try to parse that as a JWT. */
+export const CRON_SECRET_HEADER = "x-cron-secret";
+
+/**
+ * True when the request carries the cron secret. False when the function secret is not set, so a
+ * missing CRON_SECRET never opens the function. Constant-time comparison.
+ */
+export function cronAuthorized(req: Request, cronSecret: string | undefined): boolean {
+  if (!cronSecret) return false;
+  const sent = req.headers.get(CRON_SECRET_HEADER);
+  if (sent === null || sent.trim() === "") return false;
+  return safeEqual(sent.trim(), cronSecret);
+}

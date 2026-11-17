@@ -159,6 +159,30 @@ export function studentDeadline(s: SessionTimes, extension?: Instant | null): nu
 }
 
 /**
+ * The deadline a student is shown: the extension if there is one, else closes_at. No grace period: an 11:59 PM
+ * close shows as 11:59 PM. Mirror of SQL student_shown_deadline() and studentShownDeadline() in
+ * supabase/functions/_shared/due.ts (emails). The real cutoff stays studentDeadline(). Epoch milliseconds.
+ */
+export function shownDeadline(s: Pick<SessionTimes, 'closes_at'>, extension?: Instant | null): number {
+  return extension == null ? toMs(s.closes_at) : toMs(extension);
+}
+
+/**
+ * Times of a new session, and of a copy (SQL copy_session uses session_default_times): opens tomorrow at
+ * 08:00 and closes eight days from today at 23:59, both in the course time zone. ISO strings.
+ */
+export function defaultSessionTimes(timeZone: string, now: Instant = Date.now()): { opens: string; closes: string } {
+  const day = 86_400_000;
+  const t = toMs(now);
+  const o = instantToLocalInputs(t + day, timeZone).date;
+  const c = instantToLocalInputs(t + 8 * day, timeZone).date;
+  return {
+    opens: (localToInstant(o, '08:00', timeZone) ?? new Date(t + day)).toISOString(),
+    closes: (localToInstant(c, '23:59', timeZone) ?? new Date(t + 8 * day)).toISOString(),
+  };
+}
+
+/**
  * When the session is closed for everyone: greatest(closes_at + grace, latest extension). Mirror of the SQL in
  * student_get_results(), which returns the CONTRIB summary only from this moment on. Epoch milliseconds.
  */

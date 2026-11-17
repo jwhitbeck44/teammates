@@ -36,6 +36,12 @@ Enrolling an email that is already in the course updates that student. To change
 3. Type a session name, or leave it blank for the default name. Click **Create and edit**.
 4. On the edit page, set **Opens**, **Closes**, and **Grace period**. Click **Save settings**.
 
+A new session opens tomorrow at 8:00 AM and closes in eight days at 11:59 PM, in the course time zone. Change the times on the edit page.
+
+Students see the close time as the deadline, for example 11:59 PM. The grace period is not shown to them. During the grace period their page says "Late period" and they can still save. If a student has an extension, they see the extension as their deadline.
+
+To copy a session, click **Copy** on the **Sessions** tab. The copy has the same questions and settings, but new times, like a new session: it opens tomorrow at 8:00 AM and closes in eight days at 11:59 PM. If results show "At a set time", the copy shows results the same time after its close as the original did (never before it opens). Check the times before the copy opens.
+
 The two team templates differ in one way:
 
 - **Point-based:** each teammate gets 100 points for an equal share. A student who did about 10% more gives 110 points.
@@ -74,14 +80,16 @@ Students do not sign in. They can also click "email me my links" on the sign-in 
 ## 7. Watch submissions, send reminders, extend deadlines, fix answers
 
 1. On the **Sessions** tab, click **Status** next to the session.
-2. The page shows how many students have responded, with a status and a deadline for each.
-3. Select students with the check boxes. Use **Select non-submitters**, **Select all**, or **Clear**.
+2. The page shows how many students have responded. For each student, **Questions answered** shows how many questions they answered out of the questions they can answer, for example "3 of 5". A question with nobody for the student to answer about (a teammates question for a student alone in a team) is not counted. Every question is optional, so an unanswered question is information, not an error. **Responses** counts the answers saved.
+3. Select students with the check boxes. Use **Select non-submitters** (students with no answer at all), **Select students with unanswered questions** (students with at least one question left), **Select all**, or **Clear**.
 4. Click **Send submission reminder**. Click **Send results reminder** after results are published. Check **Send me a copy** to get a copy.
 5. To extend a deadline, pick a date and time next to "Extended deadline for selected students," then click **Set extension**. Click **Remove extensions** to undo it. An extension must be later than the close time.
 6. To fix a student's answers, click **Moderate** on their row. Changes save to that student's answers.
 7. To see what a student sees, click **Preview**. Preview is read only.
 
 Observers and tutors do not see the **Moderate** and **Preview** links.
+
+At the bottom of the Status page, **Emails for this session** shows how many emails of each kind were sent, failed, or skipped, and lists each failed email with its address and the error. "Skipped" means email is not set up. A failed automatic email (session opened, closing soon, results published) is tried again by the app, up to three times per student. **Later sent** says whether a later try worked. For a student who never got the email, send a reminder or give them their link from the **Students** tab.
 
 ## 8. See results, download them, publish them
 
@@ -93,6 +101,8 @@ Observers and tutors do not see the **Moderate** and **Preview** links.
 To publish, click **Publish results** on the **Status** page. Click **Unpublish results** to hide them again. You can also set results to show "As soon as the session opens" or "At a set time" under "When students can see results."
 
 Students open their own results page. It is titled "Results for" their name. It groups answers under "You gave," "About you," and "Others." Hidden names appear as "Anonymous." For the percentage-based question, the page shows "Your claim" and "Your team's view of you," with figures such as "Equal share + 10%."
+
+Contribution results (the point-based and percentage-based questions) use the teams as they were when students answered. If you move a student to another team after a session, that session's contribution numbers do not change, and the student still sees the numbers from the old team. A student who joins a team after all its members answered is not listed under that team for that session. A deleted student is left out, and their ratings are gone.
 
 ## Differences from TEAMMATES
 

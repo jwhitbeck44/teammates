@@ -363,6 +363,9 @@ export interface ResponseRow {
   updated_at: Timestamp;
   /** 'student', or the instructor's email when moderated */
   updated_by: string | null;
+  /** Giver's team key and members when the row was written (migration 11); null for instructor givers. */
+  giver_team_key?: string | null;
+  giver_team_ids?: Uuid[] | null;
 }
 
 /** One entry of the `p_answers` array passed to student_submit. `answer` is untrusted JSON. */

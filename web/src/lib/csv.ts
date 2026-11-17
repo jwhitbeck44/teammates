@@ -306,6 +306,11 @@ export interface ResultsQuestion {
   responses: ResultsResponse[];
   /** Contrib only: every member of every team, so members who did not respond still get a statistics row. */
   contribMembers?: ResultsParty[];
+  /**
+   * Contrib only: the teams from the stored response rows (results.contribTeamsFromRows). When present they
+   * are used as they are, so the CSV agrees with instructor_contrib_results after team changes.
+   */
+  contribTeams?: ContribTeam[];
 }
 
 export interface ResultsCsvOptions {
@@ -465,6 +470,7 @@ function statRecipient(p: ResultsParty): StatRecipient {
 
 /** Teams for contrib statistics: members from `contribMembers` plus every giver and recipient seen in responses. */
 function contribTeamsFor(q: ResultsQuestion): ContribTeam[] {
+  if (q.contribTeams) return q.contribTeams;
   const teams = new Map<string, ContribTeam>();
   const add = (p: ResultsParty) => {
     if (!p.key.startsWith('s:')) return;

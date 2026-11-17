@@ -136,8 +136,10 @@ begin
   perform t.reset();
   c := (r ->> 'session_id')::uuid;
   perform t.is_true((select name = 'copy of orig' and grace_minutes = 20 and instructions = 'read me' and not closing_email_enabled
-                     and opens_at = (select opens_at from public.sessions where id = s) and closes_at = (select closes_at from public.sessions where id = s)
-                     from public.sessions where id = c), 'copy keeps settings and times');
+                     from public.sessions where id = c), 'copy keeps settings');
+  -- times are the new-session defaults (migration 13), not the source's
+  perform t.is_true((select x.opens_at = d.opens_at and x.closes_at = d.closes_at
+                     from public.sessions x, public.session_default_times('America/Denver') d where x.id = c), 'copy gets the default times, not the source times');
   perform t.is_true((select published_at is null and opened_email_sent_at is null and closing_email_sent_at is null and published_email_sent_at is null
                      from public.sessions where id = c), 'copy clears published and email stamps');
   perform t.eq((select count(*)::text from public.questions where session_id = c), '2', 'copy has both questions');

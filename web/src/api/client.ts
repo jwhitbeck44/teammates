@@ -1,7 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL ?? '';
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+/**
+ * The project's publishable key (sb_publishable_...). VITE_SUPABASE_PUBLISHABLE_KEY is read first; the older
+ * name VITE_SUPABASE_ANON_KEY still works and may hold either the publishable key or the legacy anon key.
+ * Supabase retires the legacy anon key by the end of 2026 (DEPLOY.md step 2).
+ */
+export const publicApiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const anonKey = publicApiKey;
 
 export const isConfigured = url !== '' && anonKey !== '';
 

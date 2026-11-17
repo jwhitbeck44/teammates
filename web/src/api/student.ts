@@ -1,7 +1,7 @@
 // Typed wrappers for the student RPCs and the recover-links Edge Function.
 // Errors are thrown as StudentApiError with an ErrorCode (see lib/errors.ts) and human text.
 
-import { supabase, isConfigured } from './client';
+import { publicApiKey, supabase, isConfigured } from './client';
 import type { AnswerToSave, StudentPortalData, StudentResultsData, StudentSessionPayload } from '../lib/studentTypes';
 import { MappedError, NETWORK_MESSAGE, mapRpcError } from '../lib/studentView';
 
@@ -59,13 +59,14 @@ export function studentGetResults(token: string, sessionId: string): Promise<Stu
  */
 export async function recoverLinks(email: string): Promise<void> {
   const url = import.meta.env.VITE_SUPABASE_URL ?? '';
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+  const key = publicApiKey;
   if (!isConfigured) throw new StudentApiError({ code: 'network', message: NETWORK_MESSAGE, recipient_key: null });
   let res: Response;
   try {
     res = await fetch(`${url}/functions/v1/recover-links`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}` },
+      // The key goes in apikey only: a publishable key is not a JWT, so it does not belong in Authorization.
+      headers: { 'Content-Type': 'application/json', apikey: key },
       body: JSON.stringify({ email: email.trim() }),
     });
   } catch (e) {

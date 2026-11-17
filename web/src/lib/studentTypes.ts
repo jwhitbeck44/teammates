@@ -24,10 +24,18 @@ export interface PortalSession {
   name: string;
   opens_at: string;
   closes_at: string;
+  /** The real cutoff: close time plus grace, or the extension (whichever is later). Drives open/grace/closed. */
   deadline: string;
+  /** The deadline to print: the extension, else the close time (no grace). Since migration 20261117000013. */
+  shown_deadline?: string;
   status: Exclude<SessionStatus, 'not_open'>;
   published: boolean;
+  /** At least one saved answer. */
   submitted: boolean;
+  /** Questions this student can answer (they have recipients for the student). Since migration 20261117000013. */
+  questions_answerable?: number;
+  /** Of those, questions with at least one saved answer. */
+  questions_answered?: number;
 }
 
 export interface StudentPortalData {
@@ -70,7 +78,10 @@ export interface SessionInfo {
   opens_at: string;
   closes_at: string;
   grace_minutes: number;
+  /** The real cutoff (see PortalSession.deadline). */
   deadline: string;
+  /** The deadline to print (see PortalSession.shown_deadline). Absent in instructor_get_submission. */
+  shown_deadline?: string;
   status: SessionStatus;
   published: boolean;
 }

@@ -41,6 +41,8 @@ jobs:
       APP_URL: ${{ secrets.APP_URL || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      # The 15 minute email timer's own secret. Must equal the Vault secret cron_secret (DEPLOY.md step 7).
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,8 +76,12 @@ jobs:
           [ -n "$APP_URL" ] && args+=("APP_URL=$APP_URL")
           [ -n "$EMAIL_FROM" ] && args+=("EMAIL_FROM=$EMAIL_FROM")
           [ -n "$RESEND_API_KEY" ] && args+=("RESEND_API_KEY=$RESEND_API_KEY")
+          [ -n "$CRON_SECRET" ] && args+=("CRON_SECRET=$CRON_SECRET")
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::Repository secret CRON_SECRET is not set. Automatic emails (opened, closing soon, published) stay off until it is set and equals the Vault secret cron_secret (DEPLOY.md step 7)."
+          fi
           if [ "${#args[@]}" -gt 0 ]; then
             supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" "${args[@]}"
           else
-            echo "No APP_URL, EMAIL_FROM or RESEND_API_KEY secrets set; skipping."
+            echo "No APP_URL, EMAIL_FROM, RESEND_API_KEY or CRON_SECRET secrets set; skipping."
           fi

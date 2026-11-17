@@ -64,11 +64,29 @@ export function isInvalidToken(e: MappedError): boolean {
 
 /**
  * Status for display. The server status is used, except that a deadline that has passed on the
- * student's clock turns it into 'closed' (the server still has the last word on submit).
+ * student's clock turns it into 'closed' (the server still has the last word on submit), and an 'open'
+ * session past the printed deadline (`shownDeadline`) but before the real cutoff shows as 'grace'.
  */
-export function effectiveStatus(status: SessionStatus, deadline: Instant, now: Instant): SessionStatus {
+export function effectiveStatus(status: SessionStatus, deadline: Instant, now: Instant, shownDeadline?: Instant | null): SessionStatus {
   if (status === 'closed') return 'closed';
-  return toMs(now) >= toMs(deadline) ? 'closed' : status;
+  if (toMs(now) >= toMs(deadline)) return 'closed';
+  if (status === 'open' && shownDeadline != null && toMs(now) >= toMs(shownDeadline)) return 'grace';
+  return status;
+}
+
+/** The deadline to print on student pages: shown_deadline (close time or extension), else the real cutoff for older payloads. */
+export function printedDeadline(s: { deadline: string; shown_deadline?: string }): string {
+  return s.shown_deadline ?? s.deadline;
+}
+
+/**
+ * "3 of 5 questions answered". Every question is optional, so this informs; it does not label the student.
+ * Null when the payload has no counts (older backend).
+ */
+export function answeredText(answered: number | undefined, answerable: number | undefined): string | null {
+  if (answered === undefined || answerable === undefined) return null;
+  if (answerable === 0) return 'No questions for you';
+  return `${answered} of ${answerable} ${answerable === 1 ? 'question' : 'questions'} answered`;
 }
 
 export const STATUS_LABELS: Record<SessionStatus, string> = {
