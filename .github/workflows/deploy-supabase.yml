@@ -62,13 +62,14 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
+      # CLI 3: db push targets the local stack unless --remote is given, and hosted writes in CI need --yes.
       - name: Push database migrations
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
 
       - name: Deploy Edge Functions
         run: |
           for fn in email-dispatch send-reminder recover-links; do
-            supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" --use-api
+            supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes
           done
 
       - name: Set function secrets (only those present)
@@ -82,7 +83,7 @@ jobs:
             echo "::warning::Repository secret CRON_SECRET is not set. Automatic emails (opened, closing soon, published) stay off until it is set and equals the Vault secret cron_secret (DEPLOY.md step 7)."
           fi
           if [ "${#args[@]}" -gt 0 ]; then
-            supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" "${args[@]}"
+            supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" --yes "${args[@]}"
           else
             echo "No APP_URL, EMAIL_FROM, RESEND_API_KEY or CRON_SECRET secrets set; skipping."
           fi
