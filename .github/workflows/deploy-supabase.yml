@@ -15,7 +15,8 @@ concurrency:
 jobs:
   # The database tests run before anything is pushed to the real project.
   test:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest (26.04) has no postgresql-16 package, which run.sh needs.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
