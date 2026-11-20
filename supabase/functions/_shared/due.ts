@@ -12,6 +12,7 @@ import type {
   CourseRow,
   EmailLogRow,
   ExtensionRow,
+  InstructorPresenceRow,
   PlannedEmail,
   QuestionRow,
   ResponseKeyRow,
@@ -35,6 +36,9 @@ export const RECOVERY_WINDOW_MS = HOUR;
 /** Recovery emails per hour across all addresses (claim_recovery_slot enforces it in SQL). */
 export const RECOVERY_GLOBAL_LIMIT = 200;
 export const RECOVERY_LOOKBACK_MS = 180 * DAY;
+
+/** Automatic emails (opened, closing, published): a failed send is tried again on later runs, up to this many attempts per student, session and kind. */
+export const MAX_EMAIL_ATTEMPTS = 3;
 
 const t = (iso: string) => Date.parse(iso);
 
@@ -82,6 +86,8 @@ export interface DueInput {
   responses: ResponseKeyRow[];
   /** Existing email_log rows for the sessions above (any kind, any status). */
   emailLog: EmailLogRow[];
+  /** course_instructors rows of the courses above, for questions to instructors. Absent: assume some are shown. */
+  instructors?: InstructorPresenceRow[];
 }
 
 function logKey(kind: string, sessionId: string | null, studentId: string | null): string {
@@ -89,11 +95,83 @@ function logKey(kind: string, sessionId: string | null, studentId: string | null
 }
 
 /**
+ * What the email log says about one student, session and kind: done (a sent, skipped or pending row), or the
+ * number of failed attempts so far. Skipped (no email provider) counts as done, so adding a provider later
+ * does not email old sessions. MAX_EMAIL_ATTEMPTS failures also count as done.
+ */
+export interface LogState {
+  done: boolean;
+  failures: number;
+}
+
+export function logStates(rows: readonly EmailLogRow[]): Map<string, LogState> {
+  const out = new Map<string, LogState>();
+  for (const l of rows) {
+    const k = logKey(l.kind, l.session_id, l.student_id);
+    const st = out.get(k) ?? { done: false, failures: 0 };
+    if (l.status === "failed") st.failures++;
+    else st.done = true;
+    out.set(k, st);
+  }
+  for (const st of out.values()) if (st.failures >= MAX_EMAIL_ATTEMPTS) st.done = true;
+  return out;
+}
+
+/**
+ * Whether a student-giver question has at least one recipient for this student. Mirror of
+ * resolveRecipients() in web/src/lib/recipients.ts and question_recipients() in SQL, reduced to "any?".
+ * Shared cases: supabase/tests/fixtures/has_recipients_cases.json. When the student's team or the question's
+ * recipient type is unknown, the answer is true (the question counts).
+ */
+export function hasRecipients(
+  recipientType: string | undefined,
+  me: Pick<StudentRow, "id" | "section" | "team">,
+  courseStudents: readonly Pick<StudentRow, "id" | "section" | "team">[],
+  displayedInstructors: number,
+): boolean {
+  const known = me.section !== undefined && me.team !== undefined;
+  const teamOf = (s: Pick<StudentRow, "section" | "team">) => `${s.section}|${s.team}`;
+  switch (recipientType) {
+    case "students_excluding_self":
+      return courseStudents.some((s) => s.id !== me.id);
+    case "teams_excluding_self":
+      return !known || courseStudents.some((s) => s.section !== undefined && teamOf(s) !== teamOf(me));
+    case "own_team_members":
+      return !known || courseStudents.some((s) => s.id !== me.id && teamOf(s) === teamOf(me));
+    case "instructors":
+      return displayedInstructors > 0;
+    default:
+      // self, none, students, teams, own_team, own_team_members_including_self: the giver or the giver's team is always there
+      return true;
+  }
+}
+
+/**
+ * Plans whose stamp may be set after a run. A plan is stampable when it needs a stamp, every one of its emails
+ * was attempted in this run, and none of them failed with attempts left (those are retried on the next run,
+ * which needs the stamp unset). `outcomes` are the results of sendAll, in the order of the flattened emails.
+ */
+export function stampablePlans(plans: readonly SessionPlan[], outcomes: readonly ("sent" | "failed" | "skipped")[]): SessionPlan[] {
+  const out: SessionPlan[] = [];
+  let offset = 0;
+  for (const p of plans) {
+    const start = offset;
+    offset += p.emails.length;
+    if (!p.stampNeeded) continue;
+    if (offset > outcomes.length) continue;
+    const retryLeft = p.emails.some((e, i) => outcomes[start + i] === "failed" && (e.attempt ?? 1) < MAX_EMAIL_ATTEMPTS);
+    if (!retryLeft) out.push(p);
+  }
+  return out;
+}
+
+/**
  * Select the automatic emails (opened, closing soon, published) that are due at `now`.
  * Returns one plan per session and kind. A plan with `stampNeeded` and no emails means
- * "just set the stamp". The caller sends the emails, then sets the stamp once every email
- * of the plan was attempted. Students that already have an email_log row for the same kind
- * and session are skipped, so a half-finished run can be resumed safely.
+ * "just set the stamp". The caller sends the emails, then sets the stamps that stampablePlans()
+ * allows. A student is skipped when the email_log row for the same kind and session says done
+ * (sent, skipped, or MAX_EMAIL_ATTEMPTS failures); after fewer failures the email is planned again
+ * with the next attempt number. So a half-finished run can be resumed safely, and failures are retried.
  */
 export function planDueEmails(input: DueInput): SessionPlan[] {
   const { now, appUrl } = input;
@@ -106,19 +184,30 @@ export function planDueEmails(input: DueInput): SessionPlan[] {
     studentsByCourse.set(st.course_id, list);
   }
   const extByKey = new Map(input.extensions.map((e) => [`${e.session_id}|${e.student_id}`, e]));
-  const logged = new Set(input.emailLog.map((l) => logKey(l.kind, l.session_id, l.student_id)));
+  const states = logStates(input.emailLog);
+  const isDone = (kind: string, sessionId: string, studentId: string) => states.get(logKey(kind, sessionId, studentId))?.done ?? false;
+  const attemptOf = (kind: string, sessionId: string, studentId: string) => (states.get(logKey(kind, sessionId, studentId))?.failures ?? 0) + 1;
   const answered = new Set(input.responses.map((r) => `${r.session_id}|${r.question_id}|${r.giver_key}`));
-  const studentQuestions = new Map<string, string[]>();
+  const studentQuestions = new Map<string, QuestionRow[]>();
   for (const q of input.questions) {
     if (q.giver_type !== "students") continue;
     const list = studentQuestions.get(q.session_id) ?? [];
-    list.push(q.id);
+    list.push(q);
     studentQuestions.set(q.session_id, list);
   }
+  const shownInstructors = new Map<string, number>();
+  for (const i of input.instructors ?? []) {
+    if (i.is_displayed_to_students) shownInstructors.set(i.course_id, (shownInstructors.get(i.course_id) ?? 0) + 1);
+  }
+  const instructorsShown = (courseId: string) => (input.instructors === undefined ? 1 : shownInstructors.get(courseId) ?? 0);
 
-  const submittedAll = (sessionId: string, studentId: string): boolean => {
-    const qs = studentQuestions.get(sessionId) ?? [];
-    return qs.every((qid) => answered.has(`${sessionId}|${qid}|s:${studentId}`));
+  /** Every question the student can answer (it has recipients for them) has at least one saved row. */
+  const submittedAll = (s: SessionRow, st: StudentRow): boolean => {
+    const qs = studentQuestions.get(s.id) ?? [];
+    const roster = studentsByCourse.get(s.course_id) ?? [];
+    return qs
+      .filter((q) => hasRecipients(q.recipient_type, st, roster, instructorsShown(s.course_id)))
+      .every((q) => answered.has(`${s.id}|${q.id}|s:${st.id}`));
   };
 
   const plans: SessionPlan[] = [];
@@ -143,7 +232,7 @@ export function planDueEmails(input: DueInput): SessionPlan[] {
         instructions: s.instructions,
         link,
       });
-      return { kind, sessionId: s.id, studentId: st.id, to: st.email, ...r };
+      return { kind, sessionId: s.id, studentId: st.id, to: st.email, attempt: attemptOf(kind, s.id, st.id), ...r };
     };
 
     // Opened
@@ -153,7 +242,7 @@ export function planDueEmails(input: DueInput): SessionPlan[] {
       opens > nowMs - OPENED_WINDOW_MS
     ) {
       const emails = students
-        .filter((st) => !logged.has(logKey("opened", s.id, st.id)))
+        .filter((st) => !isDone("opened", s.id, st.id))
         .map((st) => render("opened", st, studentShownDeadline(s, extByKey.get(`${s.id}|${st.id}`))));
       plans.push({ sessionId: s.id, kind: "opened", stampField: "opened_email_sent_at", stampNeeded: true, emails });
     }
@@ -165,8 +254,8 @@ export function planDueEmails(input: DueInput): SessionPlan[] {
         const ext = extByKey.get(`${s.id}|${st.id}`);
         const deadline = ext ? t(ext.closes_at) : closes;
         if (nowMs >= deadline || nowMs < deadline - CLOSING_LEAD_MS) continue;
-        if (submittedAll(s.id, st.id)) continue;
-        if (logged.has(logKey("closing", s.id, st.id))) continue;
+        if (submittedAll(s, st)) continue;
+        if (isDone("closing", s.id, st.id)) continue;
         emails.push(render("closing", st, studentShownDeadline(s, ext)));
       }
       const stampNeeded = s.closing_email_sent_at === null && nowMs >= closes - CLOSING_LEAD_MS;
@@ -182,7 +271,7 @@ export function planDueEmails(input: DueInput): SessionPlan[] {
       const emails = stale
         ? []
         : students
-          .filter((st) => !logged.has(logKey("published", s.id, st.id)))
+          .filter((st) => !isDone("published", s.id, st.id))
           .map((st) => render("published", st, s.closes_at));
       plans.push({ sessionId: s.id, kind: "published", stampField: "published_email_sent_at", stampNeeded: true, emails });
     }

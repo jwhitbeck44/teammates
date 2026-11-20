@@ -14,6 +14,8 @@ Run everything with `supabase/tests/run.sh` (re-execs as user `pgtest` when run 
 | `..05_instructor_rpcs.sql` | Instructor RPCs. |
 | `..06_grants.sql` | Table and function privileges. |
 | `..07_cron.sql` | `invoke_email_dispatch()` and the `pg_cron` schedule (every 15 minutes, job name `email-dispatch`). Guarded: creates the schedule only when `pg_cron` and `pg_net` are available; the function itself returns quietly if `net` or Vault is missing, and logs a warning if the secrets `project_url` / `service_role_key` are absent. |
+| `..12_cron_secret.sql` (2026-11-17) | Replaces `invoke_email_dispatch()`: reads Vault `project_url` and `cron_secret`, sends `x-cron-secret`, no Supabase key. Function only, so it runs without pg_cron. |
+| `..13_second_review_fixes.sql` (2026-11-17) | `contrib_team_members`, `team_key_section`, `team_key_team`, `student_shown_deadline`, `student_question_counts`, `session_default_times` (all internal); new versions of `contrib_team_result`, `contrib_student_view`, `instructor_contrib_results`, `student_session_payload`, `student_portal`, `copy_session` (same signatures, grants kept). See `09-second-review-fixes.md`. |
 
 ## Deviations from ARCHITECTURE.md
 
@@ -55,8 +57,8 @@ Sentinels in contrib output: `-999` not submitted, `-9999` not available, `-101`
 
 ### Student (anon and authenticated)
 
-- `student_portal(p_token text)` -> `{course:{name,code,time_zone}, student:{name,team,section,email}, sessions:[{id,name,opens_at,closes_at,deadline,status,published,submitted}]}`. `status` is `open|grace|closed`; only opened sessions are listed, newest first.
-- `student_get_session(p_token text, p_session uuid)` -> `{course:{name,code,time_zone}, student:{name,team,section}, session:{id,name,instructions,opens_at,closes_at,grace_minutes,deadline,status,published}, questions:[{id,number,type,brief,description,details,giver_type,recipient_type,max_recipients, recipients:[{recipient_key,display_name,team_key}], answers:[{recipient_key,answer,giver_comment}]}]}`. `status` can be `not_open` only through `instructor_preview`.
+- `student_portal(p_token text)` -> `{course:{name,code,time_zone}, student:{name,team,section,email}, sessions:[{id,name,opens_at,closes_at,deadline,shown_deadline,status,published,submitted,questions_answerable,questions_answered}]}`. `status` is `open|grace|closed`; only opened sessions are listed, newest first. `deadline` is the real cutoff (`student_deadline`), `shown_deadline` the one to print (`student_shown_deadline`: extension, else close time). `questions_answerable` counts student-giver questions with at least one recipient for the student, `questions_answered` those with a saved row (`student_question_counts`). Added by migration `20261117000013`.
+- `student_get_session(p_token text, p_session uuid)` -> `{course:{name,code,time_zone}, student:{name,team,section}, session:{id,name,instructions,opens_at,closes_at,grace_minutes,deadline,shown_deadline,status,published}, questions:[{id,number,type,brief,description,details,giver_type,recipient_type,max_recipients,show_responses_to,show_giver_name_to,show_recipient_name_to, recipients:[{recipient_key,display_name,team_key}], answers:[{recipient_key,answer,giver_comment}]}]}`. `status` can be `not_open` only through `instructor_preview`. `shown_deadline` since migration `20261117000013`.
 - `student_submit(p_token text, p_session uuid, p_question uuid, p_answers jsonb)` -> `{saved:n}`. `p_answers` is `[{recipient_key, answer, giver_comment?}]`; `[]` deletes.
 - `student_get_results(p_token text, p_session uuid)` -> `{course, student:{name,team,section}, session:{id,name}, questions:[{id,number,type,brief,description,details, responses:[{giver_name,recipient_name,answer,giver_comment,is_own,recipient_is_me}], contrib?:{my_claim:{own,others:[int]}, team_view_of_me:{own,others:[int]}}}]}`. Contrib questions have `responses: []` and `contrib` only when the student may see responses about themselves and the team has answers.
 
@@ -64,13 +66,13 @@ Sentinels in contrib output: `-999` not submitted, `-9999` not available, `-101`
 
 - `claim_instructor_invites()` -> `{claimed:n}`
 - `instructor_submit(p_session uuid, p_question uuid, p_answers jsonb)` -> `{saved:n}`
-- `instructor_get_submission(p_session uuid)` -> `{course, instructor:{id,display_name}, session:{id,name,instructions,opens_at,closes_at,grace_minutes,deadline,status,published}, questions:[same as student_get_session]}`
+- `instructor_get_submission(p_session uuid)` -> `{course, instructor:{id,display_name}, session:{id,name,instructions,opens_at,closes_at,grace_minutes,deadline,status,published}, questions:[same as student_get_session]}` (no `shown_deadline`)
 - `instructor_moderate(p_session uuid, p_question uuid, p_student uuid, p_answers jsonb)` -> `{saved:n}`
 - `instructor_preview(p_session uuid, p_student uuid)` -> same as `student_get_session` (no open check)
-- `instructor_contrib_results(p_question uuid)` -> `{question_id, students:[{student_id,section,team,team_key,name,email,claimed,perceived,diff,ratings_received:[int]}]}`; `diff = -999` when either side is negative; `ratings_received` sorted descending with sentinels kept.
+- `instructor_contrib_results(p_question uuid)` -> `{question_id, students:[{student_id,section,team,team_key,name,email,claimed,perceived,diff,ratings_received:[int]}]}`; `diff = -999` when either side is negative; `ratings_received` sorted descending with sentinels kept. Since migration `20261117000013` the teams come from `contrib_team_members` (stored on the response rows), and `section`, `team`, `team_key` are the stored team's; a student who joined a team after every answer in it was saved is not listed.
 - `regenerate_student_token(p_student uuid)` -> `{access_token}`
 - `publish_session(p_session uuid)` -> `{published:true, published_at}`; `unpublish_session(p_session uuid)` -> `{published:false}`
-- `copy_session(p_session uuid, p_new_name text, p_target_course uuid default null)` -> `{session_id}`
+- `copy_session(p_session uuid, p_new_name text, p_target_course uuid default null)` -> `{session_id}`. Since migration `20261117000013` the copy gets `session_default_times(target course time zone)`; a `custom` results time is `greatest(new close + (old results time - old close), new open)`; other visibility modes copy `results_visible_at` as null.
 - `enroll_students(p_course uuid, p_rows jsonb)` -> `{created, updated, errors:[{row, code}]}`; `row` is 1-based; any error means nothing is written (`created = updated = 0`). Codes: `required_field_missing, too_long, forbidden_char, invalid_email, team_looks_like_email, duplicate_email` (second and later occurrence), `section_too_large` (every incoming row of a section whose final size is over 100), `invalid_input` (row not an object). A non-array `p_rows` raises `invalid_input`.
 - `has_perm(p_course uuid, p_perm text)` -> boolean (callable by authenticated; used by `send-reminder`).
 
@@ -86,7 +88,7 @@ Sentinels in contrib output: `-999` not submitted, `-9999` not available, `-101`
 - `email_log(session_id, kind, to_email, student_id, status, error, created_at)`; writes need the service role (clients cannot write). Instructors with `modify_sessions` can read their sessions' rows.
 - `has_perm(p_course, p_perm)` callable with the instructor JWT. Course time zone: `courses.time_zone`. Course display name: `courses.name`, `courses.code`.
 - The service role has all privileges on all tables and functions (granted in `..06_grants.sql`).
-- The cron job posts `{}` to `<project_url>/functions/v1/email-dispatch` with `Authorization: Bearer <service_role_key>` and a 30 second timeout.
+- The cron job posts `{}` to `<project_url>/functions/v1/email-dispatch` with the header `x-cron-secret: <Vault cron_secret>` and a 30 second timeout (migration `20261117000012`; until then it sent `Authorization: Bearer <service_role_key>`).
 
 ## Issues encountered
 

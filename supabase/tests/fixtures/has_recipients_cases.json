@@ -1,0 +1,31 @@
+{
+  "comment": "Whether a student-giver question has at least one recipient for the giver. Used by supabase/functions/_shared/due.test.ts (hasRecipients) and web/src/lib/results.test.ts (resolveRecipients). Roster: a and b in S1/T1, c alone in S1/T2. solo is a course with one student.",
+  "rosters": {
+    "course": [
+      { "id": "a", "section": "S1", "team": "T1" },
+      { "id": "b", "section": "S1", "team": "T1" },
+      { "id": "c", "section": "S1", "team": "T2" }
+    ],
+    "solo": [{ "id": "z", "section": "S1", "team": "T9" }],
+    "one_team": [
+      { "id": "p", "section": "S1", "team": "T1" },
+      { "id": "q", "section": "S1", "team": "T1" }
+    ]
+  },
+  "cases": [
+    { "roster": "course", "giver": "a", "recipient_type": "self", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "none", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "students", "instructors": 0, "expected": true },
+    { "roster": "solo", "giver": "z", "recipient_type": "students_excluding_self", "instructors": 0, "expected": false },
+    { "roster": "course", "giver": "a", "recipient_type": "students_excluding_self", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "teams", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "teams_excluding_self", "instructors": 0, "expected": true },
+    { "roster": "one_team", "giver": "p", "recipient_type": "teams_excluding_self", "instructors": 0, "expected": false },
+    { "roster": "course", "giver": "c", "recipient_type": "own_team", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "own_team_members", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "c", "recipient_type": "own_team_members", "instructors": 0, "expected": false },
+    { "roster": "course", "giver": "c", "recipient_type": "own_team_members_including_self", "instructors": 0, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "instructors", "instructors": 2, "expected": true },
+    { "roster": "course", "giver": "a", "recipient_type": "instructors", "instructors": 0, "expected": false }
+  ]
+}

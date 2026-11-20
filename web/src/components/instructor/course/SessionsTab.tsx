@@ -1,22 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { copySession, createSession, deleteSession, listSessions, listStudents, listSubmitters } from '../../../api/instructor';
-import { formatInstant, instantToLocalInputs, isPublished, localToInstant, sessionStatus } from '../../../lib/time';
+import { defaultSessionTimes, formatInstant, isPublished, sessionStatus } from '../../../lib/time';
 import { getTemplate, listTemplates, type TemplateId } from '../../../lib/templates';
 import type { Course, Permission } from '../../../lib/types';
 import { ErrorBox, Loading, useAction, useLoad } from '../ui';
 
 const STATUS_LABEL = { not_open: 'Not open yet', open: 'Open', grace: 'Grace period', closed: 'Closed' } as const;
-
-function defaultTimes(tz: string): { opens: string; closes: string } {
-  const day = 86_400_000;
-  const o = instantToLocalInputs(Date.now() + day, tz).date;
-  const c = instantToLocalInputs(Date.now() + 8 * day, tz).date;
-  return {
-    opens: (localToInstant(o, '08:00', tz) ?? new Date(Date.now() + day)).toISOString(),
-    closes: (localToInstant(c, '23:59', tz) ?? new Date(Date.now() + 8 * day)).toISOString(),
-  };
-}
 
 function NewSession({ course, onCancel }: { course: Course; onCancel: () => void }) {
   const navigate = useNavigate();
@@ -28,7 +18,7 @@ function NewSession({ course, onCancel }: { course: Course; onCancel: () => void
   async function create(e: React.FormEvent) {
     e.preventDefault();
     const t = getTemplate(template);
-    const times = defaultTimes(course.time_zone);
+    const times = defaultSessionTimes(course.time_zone);
     let id = '';
     const ok = await action.run(async () => {
       const s = await createSession(
@@ -89,7 +79,10 @@ export default function SessionsTab({ course, can }: { course: Course; can: (p: 
   const canModify = can('modify_sessions');
 
   async function copy(id: string, name: string) {
-    const newName = window.prompt('Name for the copy', `${name} (copy)`);
+    const newName = window.prompt(
+      'Name for the copy. The copy gets new times, like a new session: it opens tomorrow at 8:00 AM and closes in eight days at 11:59 PM. You can change them after.',
+      `${name} (copy)`,
+    );
     if (!newName || newName.trim() === '') return;
     if (await action.run(() => copySession(id, newName.trim(), null))) sessions.reload();
   }

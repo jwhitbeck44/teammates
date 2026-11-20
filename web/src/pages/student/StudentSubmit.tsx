@@ -4,7 +4,7 @@ import { studentGetSession, studentSubmit } from '../../api/student';
 import type { StudentSessionPayload } from '../../api/student';
 import { ErrorMessage, Loading, Page, TimeText, useLoad, useNow } from '../../components/common';
 import SubmissionForm from '../../components/submission/SubmissionForm';
-import { isInvalidToken, timeLeftText } from '../../lib/studentView';
+import { effectiveStatus, isInvalidToken, printedDeadline, timeLeftText } from '../../lib/studentView';
 import { toMs } from '../../lib/time';
 import InvalidLink from './InvalidLink';
 
@@ -67,21 +67,24 @@ export default function StudentSubmit() {
 function DeadlineBanner({ payload, closed }: { payload: StudentSessionPayload; closed: boolean }) {
   const now = useNow();
   const { session, course } = payload;
-  const left = timeLeftText(session.deadline, now);
+  // Printed: the close time or the student's extension. The real cutoff (session.deadline) includes the grace period.
+  const shown = printedDeadline(session);
+  const left = timeLeftText(shown, now);
   const pastOnMyClock = toMs(now) >= toMs(session.deadline);
+  const status = effectiveStatus(session.status, session.deadline, now, session.shown_deadline);
   return (
     <div className={`banner${closed ? ' banner-closed' : ''}`}>
       <p>
-        <strong>Deadline:</strong> <TimeText value={session.deadline} timeZone={course.time_zone} />
+        <strong>Deadline:</strong> <TimeText value={shown} timeZone={course.time_zone} />
         {left ? ` (${left})` : ''}
       </p>
       {closed ? (
         <p>
           <strong>Closed.</strong> You can see your answers but not change them.
         </p>
-      ) : session.status === 'grace' ? (
+      ) : status === 'grace' ? (
         <p>
-          <strong>Late period.</strong> The session has closed. Save now.
+          <strong>Late period.</strong> The deadline has passed. You can still save for a few minutes. Save now.
         </p>
       ) : pastOnMyClock ? (
         <p>The deadline looks passed. Saving may be refused.</p>

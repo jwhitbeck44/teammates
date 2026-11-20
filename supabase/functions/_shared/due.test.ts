@@ -413,3 +413,134 @@ Deno.test("deliverRecovery records skipped and failed results on the claimed row
   assert.equal(await deliverRecovery(recMail(), { resend: { apiKey: "k", from: "a@x.edu" }, fetchFn: bad, claim: () => Promise.resolve("r"), finish }), "failed");
   assert.deepEqual(seen, ["skipped", "failed"]);
 });
+
+// ---------------------------------------------------------------------------
+// Second review fixes (BUILD_NOTES/09-second-review-fixes.md)
+// ---------------------------------------------------------------------------
+import { hasRecipients, logStates, MAX_EMAIL_ATTEMPTS, stampablePlans } from "./due.ts";
+import { keyFromJson, pickKey } from "./keys.ts";
+import { cronAuthorized, CRON_SECRET_HEADER } from "./http.ts";
+import hasRecipientsFixture from "../../tests/fixtures/has_recipients_cases.json" with { type: "json" };
+
+Deno.test("item 1: keys from SUPABASE_SECRET_KEYS / SUPABASE_PUBLISHABLE_KEYS, legacy variables as fallback", () => {
+  assert.equal(keyFromJson('{"default":"sb_secret_abc","billing":"sb_secret_x"}'), "sb_secret_abc");
+  assert.equal(keyFromJson('{"worker":"sb_secret_w"}'), "sb_secret_w", "no default: the first key");
+  assert.equal(keyFromJson("not json"), null);
+  assert.equal(keyFromJson('["sb_secret_abc"]'), null);
+  assert.equal(keyFromJson('{"default":""}'), null);
+  assert.equal(keyFromJson(undefined), null);
+  assert.equal(pickKey('{"default":"sb_secret_abc"}', "eyJlegacy"), "sb_secret_abc", "new key wins");
+  assert.equal(pickKey(undefined, "eyJlegacy"), "eyJlegacy", "legacy when the new variable is missing");
+  assert.equal(pickKey("{broken", " eyJlegacy "), "eyJlegacy", "legacy when the new variable is not JSON");
+  assert.equal(pickKey(undefined, ""), null);
+});
+
+Deno.test("item 1: the timer is authorized by x-cron-secret only, never by a bearer token", () => {
+  const req = (headers: Record<string, string>) => new Request("https://x.supabase.co/functions/v1/email-dispatch", { method: "POST", headers });
+  assert.equal(CRON_SECRET_HEADER, "x-cron-secret");
+  assert.equal(cronAuthorized(req({ "x-cron-secret": "s3cret" }), "s3cret"), true);
+  assert.equal(cronAuthorized(req({ "x-cron-secret": "wrong" }), "s3cret"), false);
+  assert.equal(cronAuthorized(req({ "x-cron-secret": "s3cre" }), "s3cret"), false, "a prefix is not enough");
+  assert.equal(cronAuthorized(req({}), "s3cret"), false, "no header");
+  assert.equal(cronAuthorized(req({ Authorization: "Bearer s3cret" }), "s3cret"), false, "the old bearer check is gone");
+  assert.equal(cronAuthorized(req({ "x-cron-secret": "" }), ""), false, "an unset CRON_SECRET never authorizes");
+  assert.equal(cronAuthorized(req({ "x-cron-secret": "anything" }), undefined), false);
+});
+
+Deno.test("item 4: hasRecipients agrees with the shared fixture (same file as the web resolveRecipients test)", () => {
+  const fx = hasRecipientsFixture as {
+    rosters: Record<string, { id: string; section: string; team: string }[]>;
+    cases: { roster: string; giver: string; recipient_type: string; instructors: number; expected: boolean }[];
+  };
+  for (const c of fx.cases) {
+    const roster = fx.rosters[c.roster];
+    const me = roster.find((s) => s.id === c.giver)!;
+    assert.equal(hasRecipients(c.recipient_type, me, roster, c.instructors), c.expected, `${c.roster}/${c.giver}/${c.recipient_type}`);
+  }
+});
+
+Deno.test("item 4: closing soon ignores a question with no recipients for the student (team of one)", () => {
+  // st3 is alone in T2: the teammates question has no recipients for st3
+  const roster: StudentRow[] = [
+    { ...student(1), section: "S1", team: "T1" }, { ...student(2), section: "S1", team: "T1" }, { ...student(3), section: "S1", team: "T2" },
+  ];
+  const sess = session({ opens_at: at(-48), closes_at: at(10) });
+  const questions = [
+    { id: "q1", session_id: "se1", giver_type: "students" as const, recipient_type: "self" },
+    { id: "q2", session_id: "se1", giver_type: "students" as const, recipient_type: "own_team_members" },
+  ];
+  const responses = [
+    { session_id: "se1", question_id: "q1", giver_key: "s:st3" },
+    { session_id: "se1", question_id: "q1", giver_key: "s:st1" },
+  ];
+  const plans = byKind(planDueEmails(input({ sessions: [sess], students: roster, questions, responses })), "closing");
+  assert.deepEqual(plans[0].emails.map((e) => e.studentId), ["st1", "st2"], "st3 answered everything they can answer");
+  // a question to instructors with no instructor shown to students does not count either
+  const toInstructors = [{ id: "q3", session_id: "se1", giver_type: "students" as const, recipient_type: "instructors" }];
+  const r2 = [{ session_id: "se1", question_id: "q3", giver_key: "s:st1" }];
+  const none = byKind(planDueEmails(input({ sessions: [sess], students: roster, questions: toInstructors, responses: [], instructors: [] })), "closing");
+  assert.equal(none.length === 0 || none[0].emails.length === 0, true, "no instructor shown: nobody is nagged");
+  const some = byKind(planDueEmails(input({
+    sessions: [sess], students: roster, questions: toInstructors, responses: r2,
+    instructors: [{ course_id: "c1", is_displayed_to_students: true }],
+  })), "closing");
+  assert.deepEqual(some[0].emails.map((e) => e.studentId), ["st2", "st3"]);
+});
+
+Deno.test("item 5: logStates: sent, skipped and pending are done; failures count up to MAX_EMAIL_ATTEMPTS", () => {
+  assert.equal(MAX_EMAIL_ATTEMPTS, 3);
+  const st = logStates([
+    log("opened", "st1", "failed"), log("opened", "st1", "failed"),
+    log("opened", "st2", "failed"), log("opened", "st2", "sent"),
+    log("opened", "st3", "skipped"),
+    log("published", "st1", "failed"), log("published", "st1", "failed"), log("published", "st1", "failed"),
+  ]);
+  assert.deepEqual(st.get("opened|se1|st1"), { done: false, failures: 2 });
+  assert.equal(st.get("opened|se1|st2")?.done, true);
+  assert.equal(st.get("opened|se1|st3")?.done, true, "skipped (no provider) counts as done");
+  assert.equal(st.get("published|se1|st1")?.done, true, "three failures: give up");
+});
+
+Deno.test("item 5: a failed send is planned again with the next attempt number, at most three attempts", () => {
+  const plans = byKind(planDueEmails(input({
+    emailLog: [log("opened", "st1", "failed"), log("opened", "st2", "failed"), log("opened", "st2", "failed"), log("opened", "st3", "skipped")],
+  })), "opened");
+  assert.deepEqual(plans[0].emails.map((e) => [e.studentId, e.attempt]), [["st1", 2], ["st2", 3]]);
+  const after3 = byKind(planDueEmails(input({
+    emailLog: ["st1", "st2", "st3"].flatMap((id) => [log("opened", id, "failed"), log("opened", id, "failed"), log("opened", id, "failed")]),
+  })), "opened");
+  assert.equal(after3[0].emails.length, 0, "every student had three failures: nothing more is sent");
+  assert.equal(after3[0].stampNeeded, true);
+  // closing soon and published retry the same way
+  const closing = byKind(planDueEmails(input({ sessions: [session({ opens_at: at(-48), closes_at: at(10) })], emailLog: [log("closing", "st1", "failed")] })), "closing");
+  assert.deepEqual(closing[0].emails.map((e) => [e.studentId, e.attempt]), [["st1", 2], ["st2", 1], ["st3", 1]]);
+  const pub = byKind(planDueEmails(input({ sessions: [session({ published_at: at(-1) })], emailLog: [log("published", "st2", "failed"), log("published", "st1", "sent")] })), "published");
+  assert.deepEqual(pub[0].emails.map((e) => [e.studentId, e.attempt]), [["st2", 2], ["st3", 1]]);
+});
+
+Deno.test("item 5: the stamp waits until nothing is left to retry", () => {
+  const e = (attempt: number): PlannedEmail => ({ kind: "opened", sessionId: "se1", studentId: "x", to: "x@y.z", subject: "", html: "", text: "", attempt });
+  const plan = (emails: PlannedEmail[], stampNeeded = true) => ({ sessionId: "se1", kind: "opened" as const, stampField: "opened_email_sent_at" as const, stampNeeded, emails });
+  const ok = plan([e(1), e(1)]);
+  assert.equal(stampablePlans([ok], ["sent", "skipped"]).length, 1, "all sent or skipped: stamp");
+  assert.equal(stampablePlans([ok], ["sent", "failed"]).length, 0, "a first failure: no stamp, retried next run");
+  assert.equal(stampablePlans([plan([e(2)])], ["failed"]).length, 0, "a second failure: no stamp");
+  assert.equal(stampablePlans([plan([e(3)])], ["failed"]).length, 1, "the third failure: give up and stamp");
+  assert.equal(stampablePlans([ok], ["sent"]).length, 0, "not every email attempted (time budget): no stamp");
+  assert.equal(stampablePlans([plan([])], []).length, 1, "stamp-only plan");
+  assert.equal(stampablePlans([plan([e(1)], false)], ["sent"]).length, 0, "no stamp needed");
+  // offsets: the second plan's failure does not block the first plan
+  const p1 = plan([e(1)]);
+  const p2 = { ...plan([e(1)]), kind: "published" as const, stampField: "published_email_sent_at" as const };
+  assert.deepEqual(stampablePlans([p1, p2], ["sent", "failed"]).map((p) => p.kind), ["opened"]);
+});
+
+Deno.test("item 5: sendAll reports one outcome per attempted email", async () => {
+  const emails = [1, 2, 3].map((n): PlannedEmail => ({ kind: "opened", sessionId: "se1", studentId: `st${n}`, to: `s${n}@x.edu`, subject: "s", html: "h", text: "t" }));
+  let n = 0;
+  const fetchFn = (() => { n++; return Promise.resolve(new Response(n === 2 ? '{"message":"bad"}' : '{"id":"1"}', { status: n === 2 ? 422 : 200 })); }) as typeof fetch;
+  const sum = await sendAll(emails, { resend: { apiKey: "k", from: "f@x.edu" }, log: async () => {}, fetchFn, sleep: async () => {} });
+  assert.deepEqual(sum.outcomes, ["sent", "failed", "sent"]);
+  const skipped = await sendAll(emails, { resend: null, log: async () => {} });
+  assert.deepEqual(skipped.outcomes, ["skipped", "skipped", "skipped"]);
+});

@@ -1,5 +1,5 @@
 # Minimal Supabase project configuration. The three email functions check their own
-# authorization (service-role key, caller JWT plus has_perm, or public with a rate limit),
+# authorization (the cron secret, caller JWT plus has_perm, or public with a rate limit),
 # so the platform-level JWT check is switched off for them.
 project_id = "peer-feedback"
 

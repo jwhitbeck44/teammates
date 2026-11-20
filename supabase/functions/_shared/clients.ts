@@ -1,11 +1,13 @@
 // Supabase and Resend setup from environment variables (Deno Edge Functions).
-// SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
-// APP_URL, EMAIL_FROM and RESEND_API_KEY are set with `supabase secrets set`.
+// Supabase provides SUPABASE_URL and the API keys: SUPABASE_SECRET_KEYS and SUPABASE_PUBLISHABLE_KEYS (JSON,
+// new style), or the legacy SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY. The new ones are used when
+// present (keys.ts). APP_URL, EMAIL_FROM, RESEND_API_KEY and CRON_SECRET are set with `supabase secrets set`.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import type { ResendConfig } from "./resend.ts";
 import type { LogRow } from "./send.ts";
+import { pickKey } from "./keys.ts";
 
 export function env(name: string): string | undefined {
   const v = Deno.env.get(name);
@@ -18,15 +20,29 @@ export function requireEnv(name: string): string {
   return v;
 }
 
+/** The secret key (bypasses RLS): SUPABASE_SECRET_KEYS["default"], else SUPABASE_SERVICE_ROLE_KEY. */
+export function secretKey(): string {
+  const k = pickKey(Deno.env.get("SUPABASE_SECRET_KEYS"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  if (!k) throw new Error("Missing environment variable SUPABASE_SECRET_KEYS (or SUPABASE_SERVICE_ROLE_KEY)");
+  return k;
+}
+
+/** The publishable key (RLS applies): SUPABASE_PUBLISHABLE_KEYS["default"], else SUPABASE_ANON_KEY. */
+export function publishableKey(): string {
+  const k = pickKey(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS"), Deno.env.get("SUPABASE_ANON_KEY"));
+  if (!k) throw new Error("Missing environment variable SUPABASE_PUBLISHABLE_KEYS (or SUPABASE_ANON_KEY)");
+  return k;
+}
+
 export function serviceClient(): SupabaseClient {
-  return createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_SERVICE_ROLE_KEY"), {
+  return createClient(requireEnv("SUPABASE_URL"), secretKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
 /** A client that carries the caller's JWT, so RLS and RPCs such as has_perm see the caller. */
 export function callerClient(authorizationHeader: string): SupabaseClient {
-  return createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_ANON_KEY"), {
+  return createClient(requireEnv("SUPABASE_URL"), publishableKey(), {
     global: { headers: { Authorization: authorizationHeader } },
     auth: { persistSession: false, autoRefreshToken: false },
   });

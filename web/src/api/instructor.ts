@@ -2,13 +2,14 @@
 // the database (RLS and RPCs) decides what is allowed. See BUILD_NOTES/05-instructor-ui.md for the
 // list of operations per page.
 
-import { supabase } from './client';
+import { publicApiKey, supabase } from './client';
 import { errorMessage, isErrorCode } from '../lib/errors';
 import type { StudentSessionPayload } from '../lib/studentTypes';
 import type {
   Course,
   CourseInstructor,
   DeadlineExtension,
+  EmailLog,
   InstructorRole,
   Question,
   QuestionDraft,
@@ -394,17 +395,30 @@ export function listResponses(sessionId: Uuid): Promise<ResponseRow[]> {
   return fetchAll<ResponseRow>((a, b) =>
     supabase
       .from('responses')
-      .select('id, session_id, question_id, giver_key, recipient_key, answer, giver_comment, updated_at, updated_by')
+      .select('id, session_id, question_id, giver_key, recipient_key, answer, giver_comment, updated_at, updated_by, giver_team_key, giver_team_ids')
       .eq('session_id', sessionId)
       .order('id')
       .range(a, b),
   );
 }
 
-/** Giver key and update time of every response row (for submission status; no answer text). */
-export function listResponseMeta(sessionId: Uuid): Promise<{ giver_key: string; updated_at: string }[]> {
+/** Question, giver key and update time of every response row (for submission status; no answer text). */
+export function listResponseMeta(sessionId: Uuid): Promise<{ question_id: Uuid; giver_key: string; updated_at: string }[]> {
   return fetchAll((a, b) =>
-    supabase.from('responses').select('giver_key, updated_at').eq('session_id', sessionId).order('id').range(a, b),
+    supabase.from('responses').select('question_id, giver_key, updated_at').eq('session_id', sessionId).order('id').range(a, b),
+  );
+}
+
+/** Every email_log row of a session, newest first. RLS (email_log_select) allows this with modify_sessions. */
+export function listEmailLog(sessionId: Uuid): Promise<EmailLog[]> {
+  return fetchAll<EmailLog>((a, b) =>
+    supabase
+      .from('email_log')
+      .select('id, session_id, kind, to_email, student_id, status, error, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(a, b),
   );
 }
 
@@ -511,7 +525,7 @@ export async function sendReminder(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+        apikey: publicApiKey,
       },
       body: JSON.stringify({ session_id: sessionId, student_ids: studentIds.slice(i, i + 200), kind, copy_to_me: copyToMe && i === 0 }),
     });

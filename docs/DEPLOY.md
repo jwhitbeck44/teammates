@@ -12,8 +12,8 @@ What you will collect along the way (keep a scratch note open):
 |---|---|---|
 | Project ref | Supabase | secret `SUPABASE_PROJECT_REF` |
 | Project URL | Supabase | variable `VITE_SUPABASE_URL`, Vault secret `project_url` |
-| anon (public) key | Supabase | variable `VITE_SUPABASE_ANON_KEY` |
-| service_role key | Supabase | Vault secret `service_role_key` (never goes in GitHub, never in the website) |
+| Publishable key (`sb_publishable_...`) | Supabase | variable `VITE_SUPABASE_PUBLISHABLE_KEY` |
+| Timer secret | You make it in step 7 | Vault secret `cron_secret` and GitHub secret `CRON_SECRET` (the same value in both) |
 | Database password | You choose it | secret `SUPABASE_DB_PASSWORD` |
 | Personal access token | Supabase | secret `SUPABASE_ACCESS_TOKEN` |
 | Pages address | GitHub | Supabase Auth settings |
@@ -39,7 +39,9 @@ What you will collect along the way (keep a scratch note open):
 4. Wait a couple of minutes until the project is ready.
 5. Collect:
    - **Project ref**: the 20 letter code in the project address (`https://supabase.com/dashboard/project/<ref>`), also the part of the project URL before `.supabase.co`.
-   - **Project URL** (looks like `https://<ref>.supabase.co`) and the **anon key** and **service_role key**: in the project settings under **API** (check in the dashboard: newer projects may label them "Project URL", "anon public" and "service_role", or show "publishable" and "secret" keys. Either pair works if the app is told which one is which; use the `anon`/`publishable` key for the website and the `service_role`/`secret` key for Vault in step 7).
+   - **Project URL** (looks like `https://<ref>.supabase.co`): in the project settings under **Data API** or **API** (check in the dashboard).
+   - **Publishable key**: in the project settings under **API Keys**, tab **Publishable and secret API keys**. It starts with `sb_publishable_`. If the tab shows a **Create new API keys** button instead, click it first; this adds the new keys and changes nothing else. Supabase retires the old `anon` and `service_role` keys by the end of 2026, so do not use those.
+   - You do not need to copy the **secret key** (`sb_secret_...`). The email functions get it from Supabase by themselves, and the email timer uses its own secret (step 7). Never paste a secret key into GitHub, the website, or an email.
 6. Create a **personal access token**: click your avatar at the top right, then **Account preferences** (check in the dashboard), then **Access Tokens**, then **Generate new token**. Name it `github-deploy`. Copy it now; it is shown once.
 
 Free Supabase projects pause after about a week without activity. If students report errors after a long quiet stretch, open the project in the dashboard and click **Restore** (check in the dashboard).
@@ -56,16 +58,16 @@ On the **Secrets** tab, click **New repository secret** for each:
 | `SUPABASE_DB_PASSWORD` | the database password |
 | `SUPABASE_PROJECT_REF` | the project ref |
 
-Optional secrets (step 10 explains them; skip for now if you do not want email yet): `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`. `APP_URL` is only needed if you use a custom domain; by default the deploy script builds it from your user and repository name.
+Later secrets: `CRON_SECRET` (the email timer's secret; you make it in step 7 and add it then). Optional secrets (step 10 explains them; skip for now if you do not want email yet): `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`. `APP_URL` is only needed if you use a custom domain; by default the deploy script builds it from your user and repository name.
 
 On the **Variables** tab, click **New repository variable** for each:
 
 | Name | Value |
 |---|---|
 | `VITE_SUPABASE_URL` | the project URL, for example `https://abcdefghij.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | the anon (public) key |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | the publishable key (`sb_publishable_...`) |
 
-The anon key is meant to be public; it is baked into the website. The base path (`/<repo-name>/`) is set by the workflow itself, so you do not create `VITE_BASE_PATH` unless you use a custom domain at the root (then set it to `/`).
+The publishable key is meant to be public; it is baked into the website. (An older version of this guide used the variable name `VITE_SUPABASE_ANON_KEY`. That name still works. If you have it, put the publishable key in it, or create `VITE_SUPABASE_PUBLISHABLE_KEY`, which wins when both exist.) The base path (`/<repo-name>/`) is set by the workflow itself, so you do not create `VITE_BASE_PATH` unless you use a custom domain at the root (then set it to `/`).
 
 ## 4. Turn on GitHub Pages
 
@@ -88,27 +90,35 @@ The website workflow (**Deploy web app to GitHub Pages**) ran when you uploaded 
 
 Email scheduling needs two Postgres extensions, `pg_cron` (the timer) and `pg_net` (lets the database call the email function). The database migrations try to enable them. To check: in Supabase open **Database**, then **Extensions** (check in the dashboard), search for `pg_cron` and `pg_net`, and make sure both are switched on. Switch them on by hand if not. If you do not want email at all you can skip this, but the schedule still runs harmlessly.
 
-## 7. Add the two Vault secrets
+## 7. Set up the email timer (two Vault secrets and one GitHub secret)
 
-The 15 minute timer needs to know your project URL and the service-role key. They are stored encrypted in Supabase Vault.
-
-The `service_role_key` secret must hold the project's **service_role** key from **Project Settings**, **API** (check in the dashboard). That is the same value the Edge Functions see as `SUPABASE_SERVICE_ROLE_KEY`; the email function compares the two and answers 401 to every timer call if they differ. If the project shows new-style `sb_secret_...` keys, do not paste one of those: use the legacy `service_role` JWT (it starts with `eyJ`; look for the legacy API keys tab).
+The 15 minute timer needs your project URL and a secret of its own. The timer sends the secret with every call, and the email function only runs when it matches. The secret is a long random text that you make once. It has nothing to do with the Supabase API keys.
 
 1. In Supabase open **SQL Editor**, then **New query**.
-2. Paste this, replacing the two placeholders (keep the single quotes), and click **Run**:
+2. Paste this, replace the placeholder in the first line (keep the single quotes), and click **Run**. The second line makes a random secret and stores it in Vault.
 
 ```sql
 select vault.create_secret('https://YOUR-PROJECT-REF.supabase.co', 'project_url');
-select vault.create_secret('PASTE-THE-SERVICE-ROLE-KEY-HERE', 'service_role_key');
+select vault.create_secret(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 'cron_secret');
 ```
 
-3. Check that both exist (this shows names only, not values):
+3. Show the secret so you can copy it (a 64 character text of digits and letters a to f):
 
 ```sql
-select name from vault.secrets where name in ('project_url', 'service_role_key');
+select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret';
 ```
 
-You should see two rows. If you ever need to change a value, run `select vault.update_secret(id, 'new value') from vault.secrets where name = 'service_role_key';` (check the Vault documentation if this errors). Never paste the service_role key into GitHub, the website, or an email.
+4. In GitHub: **Settings**, **Secrets and variables**, **Actions**, **New repository secret**. Name: `CRON_SECRET`. Value: the text from step 3, nothing before or after it.
+5. Run the **Deploy Supabase** workflow again (step 5). It gives the secret to the email function.
+6. Check that both Vault secrets exist (this shows names only):
+
+```sql
+select name from vault.secrets where name in ('project_url', 'cron_secret');
+```
+
+You should see two rows. If you ever change the secret, change it in both places: `select vault.update_secret(id, 'new value') from vault.secrets where name = 'cron_secret';` (check the Vault documentation if this errors), then the GitHub secret `CRON_SECRET`, then run the Supabase workflow again. Never paste the secret into the website or an email.
+
+If you set up an older version of this app, Vault may also hold a secret named `service_role_key`. The timer no longer reads it. You can delete it: `delete from vault.secrets where name = 'service_role_key';` (check the Vault documentation if this errors).
 
 ## 8. Sign-in settings (Auth)
 
@@ -177,16 +187,18 @@ Checklist (tick each):
 - [ ] Enroll the roster above. 6 students, 2 teams are shown.
 - [ ] Download the student links CSV. It has 6 rows with distinct links.
 - [ ] Create a session from the template "team peer feedback (point-based)". Open time: a few minutes ago. Close time: tomorrow or later.
+- [ ] On Ada's link, the deadline shown is the close time you set (for example 11:59 PM), not the close time plus the grace period.
 - [ ] Open Ada's link in a private browser window (no sign-in needed). The session is listed.
 - [ ] Answer the questions as Ada, save, reload the page. Answers are still there.
-- [ ] Open Ben's link and submit too. Check the instructor submission status shows Ada and Ben as submitted and the other four as not.
+- [ ] Open Ben's link and answer one question only. Check the instructor Status page: Ada shows all questions answered (for example "3 of 3"), Ben "1 of 3", the other four "0 of 3". On Ada's link the session card says "3 of 3 questions answered".
 - [ ] Try an invalid answer (for example point totals that do not add up). The app refuses it with a clear message.
 - [ ] Change the close time to more than 30 minutes ago (past any grace period), reload Ada's link. Saving is refused.
 - [ ] Publish the results. Ada's results page shows teammates' feedback with names hidden or shown as the question's visibility says; the instructor results page shows everything; the CSV download opens.
 - [ ] Open Ada's link with one character changed in the token. You see an "invalid link" message and no data.
 - [ ] Regenerate Ben's link. The old link stops working, the new one works.
 - [ ] Without Resend: in the SQL editor run the query under Troubleshooting. After about 15 minutes you see `skipped` rows for the "opened" email. With Resend: the test inboxes receive the email, and the link opens the session.
-- [ ] Send a reminder to two students from the instructor page; check `email_log`.
+- [ ] Send a reminder to two students from the instructor page; check "Emails for this session" at the bottom of the Status page.
+- [ ] Copy the session. The copy opens tomorrow at 8:00 AM and closes in eight days at 11:59 PM (course time zone), and is not open.
 - [ ] "Email me my links" on the landing page with `you+ada@example.com`: the page always says it was sent; with Resend, one email arrives listing the session; asking a fourth time within an hour sends nothing.
 - [ ] Delete the test course when done.
 
@@ -208,7 +220,15 @@ select jobname, schedule, active from cron.job;
 select status, return_message, start_time from cron.job_run_details order by start_time desc limit 10;
 ```
 
-(The job's name depends on the migration; check in the dashboard under **Integrations**, then Cron, if the query shows nothing.) If there is no job, check step 6. If runs fail with an authorization or missing secret error, repeat step 7.
+(The job's name is `email-dispatch`; check in the dashboard under **Integrations**, then Cron, if the query shows nothing.) If there is no job, check step 6. A run marked as succeeded only means the database sent the call. To see what the email function answered:
+
+```sql
+select created, status_code, content from net._http_response order by created desc limit 5;
+```
+
+`401` means the secret did not match: the GitHub secret `CRON_SECRET` and the Vault secret `cron_secret` differ, or `CRON_SECRET` is missing (the Supabase workflow prints a warning then). Repeat step 7, steps 3 to 5. No rows at all, or a warning "vault secrets project_url / cron_secret are missing" in the database logs, means step 7 step 2 was not run. (The table name `net._http_response` is from the pg_net documentation; check there if it errors.)
+
+**Emails for one session.** The instructor Status page of a session lists the email counts by kind (sent, failed, skipped) and every failed send with the address and the error. A failed automatic email (session opened, closing soon, results published) is tried again on the next runs of the timer, up to three tries per student. Skipped emails are not tried again, also not after you set up Resend later; this keeps old sessions from sending email out of the blue.
 
 **Email function logs.** Supabase **Edge Functions**, click a function, **Logs** (check in the dashboard).
 
@@ -230,6 +250,8 @@ select status, return_message, start_time from cron.job_run_details order by sta
 | Sign-in link or email goes to the wrong address, or says redirect not allowed | Site URL and Redirect URLs (step 8) do not match your Pages address. |
 | Students say a link does not work | The link was regenerated, or was cut in two by their mail program. Send a fresh link, or have them use "email me my links". |
 | Emails are very late | The timer runs every 15 minutes. Anything longer: see "Check the timer ran". |
+| No automatic emails at all, but reminders from the Status page work | The timer is not authorized. See "Check the timer ran" and step 7. |
+| The site stopped working after Supabase turned off the old keys | The website still has the old `anon` key. Put the publishable key in the variable `VITE_SUPABASE_PUBLISHABLE_KEY` (step 3) and run the Pages workflow again. |
 | Project paused | Restore it in the Supabase dashboard (step 2 note). |
 
-To start over with an empty database, create a new Supabase project and repeat steps 2, 3, 5, 7, 8, 9 (the website variables and secrets change; nothing else does).
+To start over with an empty database, create a new Supabase project and repeat steps 2, 3, 5, 7, 8, 9 (the website variables and the secrets change, `CRON_SECRET` included; nothing else does).

@@ -54,6 +54,11 @@ export interface ResultsResponseInput {
   answer: unknown;
   giver_comment: string | null;
   updated_at?: string;
+  /** Row id; breaks ties between rows with the same updated_at (contribTeamsFromRows). */
+  id?: string;
+  /** Giver's team key and team members when the row was written (migration 11). Absent in older reads. */
+  giver_team_key?: string | null;
+  giver_team_ids?: string[] | null;
 }
 
 export const REMOVED_NAME = '(removed)';
@@ -124,7 +129,50 @@ export function toStatResponses(rows: readonly ResultsResponse[]): StatResponse[
     .map((r) => ({ giver_key: r.giver.key, recipient: toStatRecipient(r.recipient), answer: r.answer }));
 }
 
-/** Every student grouped by team, for contrib statistics (members without answers still get a row). */
+/**
+ * Teams of one contrib question, from the teams stored on its response rows, so the results of a closed
+ * session do not change when teams change later. Mirror of SQL contrib_team_members() (migration
+ * 20261117000013); same rules, in order:
+ *   1. a student who gave answers on the question: the team stamped on those rows (the latest row wins);
+ *   2. else a student listed in giver_team_ids of another giver's rows: that row's team (the latest row wins);
+ *   3. else the student's current team, but only when no stored row carries that team key.
+ * Deleted students (not in `students`) are left out. Teams are in roster order of their first member; the
+ * statistics sort them again. Rows without stored teams (older reads) behave as the current roster.
+ */
+export function contribTeamsFromRows(questionId: string, rows: readonly ResultsResponseInput[], students: readonly ResultsStudent[]): ContribTeam[] {
+  const given = rows.filter((r) => r.question_id === questionId && r.giver_key.startsWith('s:') && r.giver_team_key);
+  // latest first: updated_at descending, then id descending (as the SQL "order by updated_at desc, id desc")
+  const later = (a: ResultsResponseInput, b: ResultsResponseInput) => {
+    const ta = a.updated_at ? Date.parse(a.updated_at) : 0;
+    const tb = b.updated_at ? Date.parse(b.updated_at) : 0;
+    if (ta !== tb) return tb - ta;
+    const ia = a.id ?? '';
+    const ib = b.id ?? '';
+    return ia < ib ? 1 : ia > ib ? -1 : 0;
+  };
+  const sorted = [...given].sort(later);
+  const own = new Map<string, string>();
+  const named = new Map<string, string>();
+  const stored = new Set<string>();
+  for (const r of sorted) {
+    const k = r.giver_team_key as string;
+    stored.add(k);
+    const gid = r.giver_key.slice(2);
+    if (!own.has(gid)) own.set(gid, k);
+    for (const id of r.giver_team_ids ?? []) if (!named.has(id)) named.set(id, k);
+  }
+  const out = new Map<string, ContribTeam>();
+  for (const s of sortRoster(students)) {
+    const current = teamKey(s.section, s.team);
+    const k = own.get(s.id) ?? named.get(s.id) ?? (stored.has(current) ? null : current);
+    if (k === null) continue;
+    if (!out.has(k)) out.set(k, { team_key: k, team: parseTeamKey(k)?.team ?? s.team, members: [] });
+    out.get(k)!.members.push({ key: studentKey(s.id), name: s.name, email: s.email });
+  }
+  return [...out.values()];
+}
+
+/** Every student grouped by current team (no stored teams). Kept for callers without response rows. */
 export function contribTeamsOf(students: readonly ResultsStudent[]): ContribTeam[] {
   const out = new Map<string, ContribTeam>();
   for (const s of sortRoster(students)) {
@@ -271,6 +319,8 @@ export function buildResultsQuestions(
     const item: ResultsQuestion = { number: q.number, brief: q.brief, type: q.type, details: q.details, responses };
     if (q.type === 'contrib') {
       item.contribMembers = sortRoster(students).map((s) => index.party(studentKey(s.id)));
+      // teams from the stored rows (all rows of the question, before the section filter), as the SQL does
+      item.contribTeams = contribTeamsFromRows(q.id, rows, students);
     }
     out.push(item);
   }
@@ -337,6 +387,49 @@ export function submissionStatus(
     out.set(s.id, { student_id: s.id, submitted: !!e && e.count > 0, count: e?.count ?? 0, last_updated: e?.last ?? null });
   }
   return out;
+}
+
+/** Questions answered out of questions the student can answer. */
+export interface QuestionProgress {
+  student_id: string;
+  /** Student-giver questions with at least one recipient for this student. */
+  answerable: number;
+  /** Of those, questions with at least one saved row by the student. */
+  answered: number;
+  /** Ids of answerable questions without a saved row. */
+  unanswered: string[];
+}
+
+/**
+ * Per student: questions answered out of questions they can answer. A question with no recipients for the
+ * student (a team of one on a teammates question, no instructor shown to students) does not count. Mirror of
+ * SQL student_question_counts() (the student portal) and of submittedAll in supabase/functions/_shared/due.ts.
+ */
+export function questionProgress(
+  questions: readonly Pick<ResultsQuestionInput, 'id' | 'giver_type' | 'recipient_type'>[],
+  students: readonly RosterStudent[],
+  instructors: readonly RosterInstructor[],
+  rows: readonly Pick<ResultsResponseInput, 'question_id' | 'giver_key'>[],
+): Map<string, QuestionProgress> {
+  const answered = new Set(rows.map((r) => `${r.question_id}|${r.giver_key}`));
+  const studentQs = questions.filter((q) => q.giver_type === 'students');
+  const out = new Map<string, QuestionProgress>();
+  for (const s of students) {
+    const p: QuestionProgress = { student_id: s.id, answerable: 0, answered: 0, unanswered: [] };
+    for (const q of studentQs) {
+      if (resolveRecipients(q, studentGiver(s), students, instructors).length === 0) continue;
+      p.answerable++;
+      if (answered.has(`${q.id}|${studentKey(s.id)}`)) p.answered++;
+      else p.unanswered.push(q.id);
+    }
+    out.set(s.id, p);
+  }
+  return out;
+}
+
+/** Students with at least one answerable question left unanswered, in roster order. */
+export function studentsWithUnanswered<T extends RosterStudent>(students: readonly T[], progress: Map<string, QuestionProgress>): T[] {
+  return sortRoster(students).filter((s) => (progress.get(s.id)?.unanswered.length ?? 0) > 0);
 }
 
 /** Students without any response, in roster order. */
