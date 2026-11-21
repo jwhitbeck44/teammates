@@ -6,7 +6,12 @@
   --bg: #fff;
   --panel: #f5f6f8;
   --line: #c9ced6;
-  --accent: #0b57d0;
+  /* UCCS brand colours (brand.uccs.edu, Color): CU Black #000000, CU Gold #cfb87c, CU Dark Gray #565a5c.
+     Gold text on white is too faint, so gold is used on black only; links and buttons are black. */
+  --uccs-black: #000;
+  --uccs-gold: #cfb87c;
+  --uccs-dark-gray: #565a5c;
+  --accent: var(--uccs-black);
   --accent-text: #fff;
   --ok: #0a6b2d;
   --warn: #8a4b00;
@@ -411,7 +416,7 @@ button.link-button {
 }
 .rubric-cell.picked {
   border: 2px solid var(--accent);
-  background: #eef3fd;
+  background: #f6f0de; /* light CU Gold tint */
 }
 .rubric-cell input {
   width: 1.375rem;
@@ -477,4 +482,53 @@ button.link-button {
   .button {
     transition: background-color 0.1s;
   }
+}
+
+/* UCCS header and footer (components/common/Brand.tsx). The logo keeps clear space around it
+   (brand.uccs.edu, Logo Usage) and sits apart from the app name. */
+.site-header,
+.ins-top {
+  background: var(--uccs-black);
+  border-bottom: 4px solid var(--uccs-gold);
+}
+.site-header {
+  padding: 18px 30px;
+}
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+}
+.brand-logo {
+  display: block;
+  height: 30px;
+  width: auto;
+}
+.brand-name,
+.brand-home {
+  color: var(--uccs-gold);
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-decoration: none;
+  border-left: 1px solid var(--uccs-dark-gray);
+  padding-left: 28px;
+}
+.brand-home .brand-name {
+  border: 0;
+  padding: 0;
+}
+.site-footer {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.5rem 0.875rem 2rem;
+  border-top: 1px solid var(--line);
+  color: var(--uccs-dark-gray);
+  font-size: 0.85rem;
+  text-align: center;
+}
+@media (max-width: 480px) {
+  .site-header, .ins-top { padding-left: 16px; padding-right: 16px; }
+  .brand-mark { gap: 16px; }
+  .brand-logo { height: 24px; }
+  .brand-name, .brand-home { padding-left: 16px; font-size: 1rem; }
 }

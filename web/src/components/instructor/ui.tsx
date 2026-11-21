@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { BrandMark } from '../common/Brand';
 import { errorText, getMyRole, isRlsDenied } from '../../api/instructor';
 import { ROLE_PERMISSIONS, type InstructorRole, type Permission } from '../../lib/types';
 import '../../styles/instructor.css';
@@ -94,9 +95,7 @@ export function Page({ title, crumbs, children, wide }: { title: string; crumbs?
   return (
     <div className="ins">
       <header className="ins-top">
-        <Link to="/" className="ins-brand">
-          Peer feedback
-        </Link>
+        <BrandMark homeLink />
         <span className="ins-top-right">
           <span className="ins-muted">{user?.email}</span>
           <button type="button" className="ins-link" onClick={() => void signOut()}>

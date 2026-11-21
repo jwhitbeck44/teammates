@@ -1,9 +1,9 @@
 /* Instructor pages: plain, dense, desktop first. Everything is scoped under .ins. */
 .ins { font-family: system-ui, sans-serif; color: #1a1a1a; font-size: 15px; line-height: 1.4; }
 .ins * { box-sizing: border-box; }
-.ins-top { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #1f2937; color: #fff; }
+.ins-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 30px; color: #fff; } /* colours: base.css, UCCS header */
 .ins-top a, .ins-top .ins-link { color: #fff; }
-.ins-brand { font-weight: 600; text-decoration: none; }
+.ins-top a.brand-home { color: var(--uccs-gold); }
 .ins-top-right { display: flex; gap: 12px; align-items: center; }
 .ins-top-right .ins-muted { color: #d1d5db; }
 .ins-main { max-width: 1100px; margin: 0 auto; padding: 12px 16px 48px; }
@@ -13,7 +13,7 @@
 .ins h2 { font-size: 17px; margin: 20px 0 8px; }
 .ins h3 { font-size: 15px; margin: 14px 0 6px; }
 .ins-crumbs { font-size: 13px; color: #4b5563; }
-.ins a { color: #1d4ed8; }
+.ins a { color: #000; }
 .ins-muted { color: #6b7280; }
 .ins-small { font-size: 13px; }
 .ins-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; padding: 6px 10px; margin: 8px 0; }
@@ -23,10 +23,10 @@
 .ins button, .ins .ins-btn { font: inherit; padding: 4px 10px; border: 1px solid #9ca3af; background: #f3f4f6; border-radius: 3px; cursor: pointer; color: #111827; text-decoration: none; display: inline-block; }
 .ins button:hover:not(:disabled), .ins .ins-btn:hover { background: #e5e7eb; }
 .ins button:disabled { opacity: 0.5; cursor: default; }
-.ins button.ins-primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
-.ins button.ins-primary:hover:not(:disabled) { background: #1e40af; }
+.ins button.ins-primary { background: #000; border-color: #000; color: #fff; }
+.ins button.ins-primary:hover:not(:disabled) { background: #333; }
 .ins button.ins-danger { color: #b91c1c; border-color: #fca5a5; }
-.ins button.ins-link { border: none; background: none; padding: 0; color: #1d4ed8; text-decoration: underline; }
+.ins button.ins-link { border: none; background: none; padding: 0; color: #000; text-decoration: underline; }
 .ins-top button.ins-link { color: #fff; }
 .ins-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .ins-actions-cell { white-space: nowrap; }
