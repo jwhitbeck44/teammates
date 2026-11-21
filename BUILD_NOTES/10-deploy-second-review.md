@@ -44,6 +44,15 @@ The first check found that the app had never been deployed: no GitHub secrets or
   - `supabase_migrations.schema_migrations` lists all 13 versions, 20261116000001 to 20261117000013.
 - Timer: the one `net._http_response` row is a 401 at 20:45:00. That call came before the functions and CRON_SECRET were deployed (20:45:02 to 20:45:11 in run 44814087359), so it is expected and does not say whether the secrets match. The 21:00:00 call returned **200**: the timer works and cron_secret matches CRON_SECRET.
 
+## After the deployment
+
+| Step | Status |
+|---|---|
+| Supabase GitHub integration | Checked by me in the dashboard (you signed in): "Deploy to production" was already off, automatic branching off. Nothing changed. |
+| Resend | Dropped by you for now. |
+| Guide for your colleague | Written as a doc, "Peer feedback app: getting started". Their account (allowlist row, Authentication user) is yours to create. |
+| Pull request #5: UCCS branding | Merged after your yes (fbad100). Official UCCS signature (reverse PNG from the UCCS beginner logo package), CU Black and CU Gold from brand.uccs.edu, footer "Built for UCCS courses by Jim Whitbeck and Dayna Herbert Walker. Not an official UCCS service.", tab title "UCCS Peer Feedback". Pages run succeeded; site and logo return 200; instructor home checked in your Chrome. No tab icon (would mean cropping the logo). |
+
 ## Smoke test results (2026-11-20, test course asdfg, session "Smoke test session")
 
 Driven with Claude in Chrome in your signed-in Chrome. No password was entered by me.
@@ -78,7 +87,7 @@ Not checked: the rate limit on the fourth links request within an hour (only vis
 1. **Duplicate Vault secret.** The DEPLOY.md step 7 SQL reported `duplicate key ... (name)=(project_url)` on a second Run. I replaced it with an idempotent block that updates project_url and creates cron_secret only if missing.
 2. **No PostgreSQL 16 package.** `ubuntu-latest` is now Ubuntu 26.04, which has no `postgresql-16` package, so the test job failed with exit code 100 (run 44813439821). Fixed in pull request #2 by pinning the test job to `ubuntu-24.04`.
 3. **CLI 3.2.0 flags.** `db push` targets the local stack unless `--remote` is given, and hosted writes on non-interactive runs need `--yes` (`HostedMutationConsentRequiredError`). Run 44813818778 failed with `--password only applies to a linked project ... pass --remote`. Fixed in pull request #3. Source: supabase/cli at tag v3.2.0, `apps/cli/docs/command-target.md` and each command's `SIDE_EFFECTS.md`.
-4. **The database was already up to date when the workflow ran.** The successful run said "Remote database is up to date" instead of listing applied migrations, although none of my runs got past the migration step before then. The tables exist. Also, the log names the project "jwhitbeck44's Project", not `peer-feedback`, and `project_url` was already in Vault on your first SQL run. So either this is an older existing project, or the Supabase GitHub integration applied the migrations on the merge to main. **Cause confirmed: the project has the Supabase GitHub integration connected** (checked by you), which applies migrations on merge to main before the workflow's `db push` runs. Migration 20261120000014 is recorded and `enroll_students` contains `where true` (checked by you).
+4. **The database was already up to date when the workflow ran.** The successful run said "Remote database is up to date" instead of listing applied migrations, although none of my runs got past the migration step before then. The tables exist. Also, the log names the project "jwhitbeck44's Project", not `peer-feedback`, and `project_url` was already in Vault on your first SQL run. So either this is an older existing project, or the Supabase GitHub integration applied the migrations on the merge to main. The project has the Supabase GitHub integration connected (checked by you). **But when I opened Settings, Integrations later the same day, its "Deploy to production" switch was off** (and automatic branching, a Pro feature, was off too). So unless it was switched off in between, the integration did not apply the migrations, and the cause is still unknown. The next merge with a new migration will show it: the workflow should then print the migration it applies. Migration 20261120000014 is recorded and `enroll_students` contains `where true` (checked by you).
 
 5. **Enrolment failed on Supabase.** Supabase loads pg-safeupdate for API requests, which rejects UPDATE and DELETE without WHERE. `enroll_students` had `update _enroll_in i set is_new = ...` with no WHERE. The test cluster does not load safeupdate. Fixed in migration 20261120000014 (`where true`). The new test `safeupdate.test.sql` checks every public function's source. A scan of all migrations found no other such statement inside a function; the backfill in 20261116000011 runs once at migration time.
 
@@ -86,7 +95,7 @@ Not checked: the rate limit on the fourth links request within an hour (only vis
 
 - Minor: after Send submission reminder, the Status page shows no confirmation and the email counts appear only after Refresh.
 
-- **Decide about the GitHub integration.** It applies migrations on every merge to main, in parallel with the workflow, so the workflow's database tests no longer gate migrations: a migration that fails the tests would still reach the live database. Options: turn off its automatic migrations in the dashboard so the workflow is the only deployer, or keep it and accept that. I did not change it.
-- Optional: DEPLOY.md step 10 (Resend), so emails are actually sent instead of skipped.
+- GitHub integration: checked in the dashboard; "Deploy to production" is off, so the workflow is the only deployer and its tests gate migrations. The repository stays connected; I changed nothing there. Check that the next migration is applied by the workflow (issue 4).
+- Resend (DEPLOY.md step 10): decided against for now; emails stay skipped.
 - DEPLOY.md does not mention issues 2 and 3. They are fixed in the workflow, so no doc change is needed unless you want one.
 - Optional: Node.js 20 deprecation warnings on the GitHub actions (checkout@v4 and others); they still run.
