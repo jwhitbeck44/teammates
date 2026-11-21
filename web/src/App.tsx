@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { SiteFooter, SiteHeader } from './components/common/Brand';
 import { AuthProvider } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
 import Login from './pages/Login';
@@ -20,9 +21,14 @@ import StudentResults from './pages/student/StudentResults';
 // Instructor routes need a signed-in user; student routes (/s/...) and /recover never do.
 const guard = (el: ReactElement) => <RequireAuth>{el}</RequireAuth>;
 
+// Instructor pages draw their own black bar (components/instructor/ui.tsx); the others get SiteHeader.
+const OWN_HEADER = /^\/($|courses\/|sessions\/)/;
+
 export default function App() {
+  const { pathname } = useLocation();
   return (
     <AuthProvider>
+      {OWN_HEADER.test(pathname) ? null : <SiteHeader />}
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={guard(<InstructorHome />)} />
@@ -39,6 +45,7 @@ export default function App() {
         <Route path="/recover" element={<Recover />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <SiteFooter />
     </AuthProvider>
   );
 }
